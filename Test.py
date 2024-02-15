@@ -7,13 +7,12 @@ class Network:
         member = Node(name, age, location)
         self.members.append(member)
 
+
     def find_member_by_name(self, name):
-        m = False
         for member in self.members:
             if member.name == name:
-                m = member
-                break
-        return m
+                return member
+        return None
 
     def add_relationship(self, first_name, second_name):
         first_member = self.find_member_by_name(first_name)
@@ -39,6 +38,7 @@ class Node:
         self.location = location
         self.friends = []
 
+
 class Graph:
     def __init__(self, first_member, second_member):
         self.first_member = first_member
@@ -46,7 +46,11 @@ class Graph:
 
 
 network = Network()
+network.add_member("Bob", 30, 'Los Angeles')
 network.add_member('Arkadii', 18, 'Russia')
 network.add_member('Joe', 30, 'UK')
-network.add_relationship('Joe', 'Arkadii')
-network.print_information()
+
+print(network.find_member_by_name('Bob'))
+'''network.add_relationship('Joe', 'Arkadii')
+network.add_relationship('Joe', 'Bob')
+network.print_information()'''
