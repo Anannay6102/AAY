@@ -51,6 +51,8 @@ network.add_member('Arkadii', 18, 'Russia')
 network.add_member('Joe', 30, 'UK')
 
 print(network.find_member_by_name('Bob'))
-'''network.add_relationship('Joe', 'Arkadii')
+
+network.add_relationship('Joe', 'Arkadii')
+
 network.add_relationship('Joe', 'Bob')
-network.print_information()'''
+network.print_information()
