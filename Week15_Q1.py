@@ -1,22 +1,22 @@
-class Network:    
-    #Initialize an empty Networks
+class Network:
+    # Initialize an empty Networks
     def __init__(self):
         self.members = []
         self.relationships = []
-    
-    #Create a new member
+
+    # Create a new member
     def add_member(self, name, age, location):
         member = Node(name, age, location)
         self.members.append(member)
 
-    #Search for a member by name
+    # Search for a member by name
     def find_member_by_name(self, name):
         for member in self.members:
             if member.name == name:
                 return member
         return None
-    
-    #Add a bidirectional relationship 
+
+    # Add a bidirectional relationship
     def add_relationship(self, first_name, second_name):
         first_member = self.find_member_by_name(first_name)
         second_member = self.find_member_by_name(second_name)
@@ -27,43 +27,46 @@ class Network:
             self.relationships.append(relationship)  # 3. add relationship
         else:  # if it is not, at least one account does not exist
             pass
-    #Printing network information
+
+    # Printing network information
     def print_information(self):
         member_names = [member.name for member in self.members]
-        relationship_names = [f"{relationship.first_member.name} - {relationship.second_member.name}" for relationship in self.relationships]
+        relationship_names = [f"{relationship.first_member.name} - {relationship.second_member.name}" for relationship
+                              in self.relationships]
         print(f'Members:{member_names} \nRelationships:{relationship_names}')
 
-    #Find and return the names of all friends of given user
+    # Find and return the names of all friends of given user
     def find_friends(self, name):
         member = self.find_member_by_name(name)
         if member:
             return [friend.name for friend in member.friends]
         return []
-    
-    #Find the least number of edges between two users using BFS
+
+    # Find the least number of edges between two users using BFS
     def shortest_path(self, start_name, end_name):
         start_member = self.find_member_by_name(start_name)
         end_member = self.find_member_by_name(end_name)
         if not start_member or not end_member:
-            return None  #Member or members do not exist
+            return None  # Member or members do not exist
 
-        visited = set() 
-        queue = [(start_member, 0)]  #Initialize queue with the starting node
+        visited = set()
+        queue = [(start_member, 0)]  # Initialize queue with the starting node
 
         while queue:
-            current_member, distance = queue.pop(0) #Dequeue the next member
+            current_member, distance = queue.pop(0)  # Dequeue the next member
             if current_member == end_member:
                 return distance
 
             if current_member not in visited:
-                visited.add(current_member) #Mark the current node visited
+                visited.add(current_member)  # Mark the current node visited
                 for friend in current_member.friends:
                     if friend not in visited:
                         queue.append((friend, distance + 1))
 
         return None
 
-#Initialize nodes 
+
+# Initialize nodes
 class Node:
     def __init__(self, name, age, location):
         self.name = name
@@ -71,7 +74,8 @@ class Node:
         self.location = location
         self.friends = []
 
-#Creating Graph relationships
+
+# Creating Graph relationships
 class Graph:
     def __init__(self, first_member, second_member):
         self.first_member = first_member
@@ -94,11 +98,11 @@ network.add_relationship("Charlie", "David")
 
 # Find all the friends of Alice
 alice_friends = network.find_friends("Alice")
-print(alice_friends) # Output: ["Bob"]
+print(alice_friends)  # Output: ["Bob"]
 
 # Find the shortest path between Alice and David
 shortest_path = network.shortest_path("Alice", "David")
-print(shortest_path) # Output: 3
+print(shortest_path)  # Output: 3
 
-#Printing all information about network
+# Printing all information about network
 network.print_information()
