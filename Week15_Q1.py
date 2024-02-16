@@ -1,5 +1,5 @@
 class Network:    
-    #Initialize a empty Networks
+    #Initialize an empty Networks
     def __init__(self):
         self.members = []
         self.relationships = []
