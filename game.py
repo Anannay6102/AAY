@@ -85,6 +85,7 @@ class Game:
         self.maze = random_maze(7)  # Generate a maze structure with 7 rooms.
         self.current_room = self.maze  # Start the character in the initial room of the maze.
         self.walls = (Wall(0, 160, 640, 10), Wall(0, 320, 640, 10), Wall(0, 160, 10, 170), Wall(630, 160, 10, 170))
+        self.mini_game = MiniGame(self.screen)
 
     def move_point(self, dx=0, dy=0):
         old_x, old_y = self.point.x, self.point.y
@@ -122,7 +123,7 @@ class Game:
                     new_room = self.current_room.back_way
                 self.current_room = new_room
                 if not self.current_room.visited:
-                    #self.mini_game.run()
+                    self.mini_game.run()
                     self.current_room.visited = True
                 self.point.x = 320
                 self.point.y = 240
@@ -155,6 +156,25 @@ class Game:
             self.change_room_if_on_doors()
             self.rendering()  # call the 'rendering' method to draw the game state on the screen
         pygame.quit()  # end all pygame modules
+
+
+class MiniGame:
+    def __init__(self, screen):
+        self.screen = screen
+
+    def run(self):
+        mini_game_running = True
+        while mini_game_running:
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_m:
+                    mini_game_running = False
+                elif event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+            self.screen.fill((0, 0, 0))
+            pygame.display.flip()
+            pygame.time.Clock().tick(60)
+
 
 
 game = Game()  # create an instance of the 'Game' class
