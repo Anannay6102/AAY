@@ -5,85 +5,86 @@ pygame.init()
 
 
 class Room:
-    # This class defines a room in a catacomb. Each room has a unique number and can be connected to other rooms in three directions: back, left, and right.
-    def __init__(self, number, back_way=None):
-        self.back_way = back_way  # The room from which this room was entered, if any.
-        self.right_way = None  # Placeholder for a room that will be to the right of this room.
-        self.left_way = None  # Placeholder for a room that will be to the left of this room.
-        self.number = number  # A unique identifier for this room.
+    """This class represents a room within a maze. Each room is essentially a node in a tree/graph structure, with
+    potential connections in three directions: back, left, and right. These connections are to other instances of Room,
+    allowing for the dynamic construction of a maze."""
+
+    def __init__(self, number, back_way=None):  # Initialize attributes
+        self.back_way = back_way  # Room from which this room was entered, if any (parent node)
+        self.right_way = None  # Room that will be to the right of this room (right node)
+        self.left_way = None  # Room that will be to the left of this room (left node)
+        self.number = number  # Unique identifier for this room
+        self.visited = False  # Status which shows if room was visited
+        self.doors = self.set_doors
+
+    def set_doors(self):
+        doors = []
+        # Add a door to the left if the current room has a left connection.
+        if self.left_way:
+            left_door = Door(10, 200, 20, 80, 'left')
+            doors.append(left_door)
+        # Add a door to the right if the current room has a right connection.
+        if self.right_way:
+            right_door = Door(610, 200, 20, 80, 'right')
+            doors.append(right_door)
+        # Add a door at the back if the current room has a back connection.
+        if self.back_way:
+            back_door = Door(280, 170, 80, 20, 'back')
+            doors.append(back_door)
+        return doors  # Return the list of Door objects for the current room.
 
 
-def insert_random(room, number, back_way=None):
-    # This function inserts a new room into the catacomb structure at a random position (left or right) from the given room.
-    if room is None:
-        return Room(number, back_way)  # If there's no room, create a new one as the starting point.
-    else:
-        # Randomly decide whether to insert the new room to the left or right.
-        if random.random() > 0.5:
-            # If the left side is empty, insert the new room there.
-            if room.left_way is None:
-                room.left_way = Room(number, room)
-            else:
-                # If the left side is not empty, recursively call this function to insert the new room further down the left side.
-                insert_random(room.left_way, number, room)
-        else:
-            # If the right side is empty, insert the new room there.
-            if room.right_way is None:
-                room.right_way = Room(number, room)
-            else:
-                # If the right side is not empty, recursively call this function to insert the new room further down the right side.
-                insert_random(room.right_way, number, room)
-        return room  # Return the updated structure of rooms.
+def random_maze(size, back_way=None):
+    """Constructs a tree/graph structure maze of 'Room' instances in a recursive manner. The maze is asymmetric and
+    generated randomly, with the possibility of different configurations each time the function is called. The maze's
+    structure is determined by randomly splitting the remaining 'size' between the left and right paths at each step
+    until the base case of 'size' equal to 0 is reached.
+    from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
+    if size == 0:  # If there are no more rooms to create,
+        return None  # return None
+    left_size = random.randint(0, size - 1)  # Randomly determine the size of the left branch of the maze.
+    right_size = size - 1 - left_size  # The remaining size is allocated to the right branch.
+    room = Room(size, back_way)  # Create the current room with the given 'size' as its identifier.
+    room.left_way = random_maze(left_size, room)  # Recursively create the left and
+    room.right_way = random_maze(right_size, room)  # right branches of the maze from this room.
+    return room  # Return the current 'room' as the root of this segment of the maze.
 
 
-def random_catacombs(n):
-    # This function generates a catacomb with a specified number of rooms in a randomized layout.
-    root = Room(0)  # The starting room of the catacomb.
-    for i in range(1, n):
-        insert_random(root, i)  # Insert each new room into the catacomb in a random position.
-    return root  # Return the root of the catacomb structure after all rooms have been added.
-
-
-class Point:  # make object point (character)
-    def __init__(self, x, y, radius, speed):  # initialize attributes
-        self.x = x  # x coordinate
-        self.y = y  # y coordinate
-        self.radius = radius  # radius
-        self.speed = speed  # speed
+class Point:
+    """Represents a movable character in the game with a defined position, radius, and speed"""
+    def __init__(self, radius, speed):  # Initialize attributes.
+        self.x = 320  # Starting x-coordinate of the character on the screen.
+        self.y = 240  # Starting y-coordinate of the character on the screen.
+        self.radius = radius  # Radius of the circle representing the character.
+        self.speed = speed  # Speed at which the character moves.
 
 
 class Wall:
-    def __init__(self, x, y, width, height):
-        self.rect = pygame.Rect(x, y, width, height)
+    """Represents an immovable wall in the game. Walls define the boundaries and obstacles in rooms."""
+    def __init__(self, x, y, width, height):  # Initialize attributes.
+        self.rect = pygame.Rect(x, y, width, height)  # The rectangular area the wall occupies.
 
 
 class Door:
-    def __init__(self, x, y, width, height, direction):
+    """Represents a door in the game, allowing the character to move between rooms."""
+    def __init__(self, x, y, width, height, direction):  # Initialize attributes.
         self.rect = pygame.Rect(x, y, width, height)
         self.direction = direction
 
 
-class Game:  # make object game ()
-    def __init__(self):  # initialize all attributes (features) of game
-        self.point = Point(320, 240, 8, 5)  # put point (character) in game
-        self.screen = pygame.display.set_mode((640, 480))  # initialize the screen
-        self.catacombs = random_catacombs(7)  # create and set up catacombs (tree) structure
-        self.current_room = self.catacombs
-        self.walls = [Wall(0, 160, 640, 10), Wall(0, 320, 640, 10), Wall(0, 160, 10, 170), Wall(630, 160, 10, 170)]
-        self.doors = self.update_doors()
 
-    def update_doors(self):
-        doors = []
-        if self.current_room.left_way:
-            left_door = Door(20, 200, 20, 80, 'left')
-            doors.append(left_door)
-        if self.current_room.right_way:
-            right_door = Door(600, 200, 20, 80, 'right')
-            doors.append(right_door)
-        if self.current_room.back_way:
-            back_door = Door(280, 180, 80, 20, 'back')
-            doors.append(back_door)
-        return doors
+
+
+class Game:
+    """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
+        collision detection, and rendering of game elements to the screen."""
+
+    def __init__(self):  # initialize all attributes (features) of game
+        self.point = Point(10, 5)  # Initialize the character with specified radius and speed.
+        self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
+        self.maze = random_maze(7)  # Generate a maze structure with 7 rooms.
+        self.current_room = self.maze  # Start the character in the initial room of the maze.
+        self.walls = (Wall(0, 160, 640, 10), Wall(0, 320, 640, 10), Wall(0, 160, 10, 170), Wall(630, 160, 10, 170))
 
     def move_point(self, dx=0, dy=0):
         old_x, old_y = self.point.x, self.point.y
@@ -108,46 +109,41 @@ class Game:  # make object game ()
         if keys[pygame.K_DOWN]:
             self.move_point(dy=self.point.speed)
 
-    def check_if_on_doors(self):
-        for door in self.doors:
+    def change_room_if_on_doors(self):
+        for door in self.current_room.doors():
             if door.rect.collidepoint(self.point.x, self.point.y):
                 print(f"Collided with door: {door.direction}")
-                self.change_room(door)
+                new_room = None
+                if door.direction == 'left':
+                    new_room = self.current_room.left_way
+                elif door.direction == 'right':
+                    new_room = self.current_room.right_way
+                elif door.direction == 'back':
+                    new_room = self.current_room.back_way
+                self.current_room = new_room
+                if not self.current_room.visited:
+                    #self.mini_game.run()
+                    self.current_room.visited = True
+                self.point.x = 320
+                self.point.y = 240
                 break
-
-    def change_room(self, door):
-        new_room = None
-        if door.direction == 'left':
-            new_room = self.current_room.left_way
-        elif door.direction == 'right':
-            new_room = self.current_room.right_way
-        elif door.direction == 'back':
-            new_room = self.current_room.back_way
-
-        if new_room is not None:
-            self.current_room = new_room
-            self.doors = self.update_doors()
-            self.point.x = 320
-            self.point.y = 240
 
     def character_rendering(self):
         # Draw a white circle on the screen at the point's position with its radius
         pygame.draw.circle(self.screen, (255, 255, 255), (self.point.x, self.point.y), self.point.radius)
 
-    def room_rendering(self, room):
+    def room_rendering(self):
         for wall in self.walls:
             pygame.draw.rect(self.screen, (255, 255, 255), wall.rect)
-        for door in self.doors:
+        for door in self.current_room.doors():
             pygame.draw.rect(self.screen, (0, 255, 255), door.rect)
 
     def rendering(self):  # define a method to render (draw) the game state on the screen
         self.screen.fill((0, 0, 0))  # fill the screen with black color
-
         self.character_rendering()
-        self.room_rendering(self.current_room)
-
+        self.room_rendering()
         pygame.display.flip()  # update the screen
-        pygame.time.Clock().tick(120)  # Limit the game to n frames per second
+        pygame.time.Clock().tick(120)  # limit the game to n frames per second
 
     def run(self):  # define the main game loop method
         running = True  # set the game to run
@@ -156,7 +152,7 @@ class Game:  # make object game ()
                 if event.type == pygame.QUIT:  # if the window closure is triggered
                     running = False  # stop the game loop
             self.actions()  # call the 'actions' method to process keyboard inputs
-            self.check_if_on_doors()
+            self.change_room_if_on_doors()
             self.rendering()  # call the 'rendering' method to draw the game state on the screen
         pygame.quit()  # end all pygame modules
 
