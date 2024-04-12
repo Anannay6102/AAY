@@ -15,6 +15,7 @@ class Room:
         self.number = number  # Unique identifier for this room
         self.visited = False  # Status which shows if room was visited
         self.objects = []
+        self.spawn = (320, 240)
 
     def make_objects(self):  # Method which make doors and walls for this room.
         self.objects = [Wall(0, 160, 640, 10), Wall(0, 320, 640, 10), Wall(0, 160, 10, 170), Wall(630, 160, 10, 170)]
@@ -107,17 +108,19 @@ class Game:
         new_room = None
         if door.direction == 'left':
             new_room = self.current_room.left_way
+            self.current_room.spawn = (40, 240)
         elif door.direction == 'right':
             new_room = self.current_room.right_way
+            self.current_room.spawn = (600, 240)
         elif door.direction == 'back':
             new_room = self.current_room.back_way
+            self.current_room.spawn = (320, 240)
         self.current_room = new_room
         self.objects = self.current_room.objects
         if not self.current_room.visited:
             self.mini_game.run()
             self.current_room.visited = True
-        self.point.x = 320
-        self.point.y = 240
+        self.point.x, self.point.y = self.current_room.spawn
 
     def check_doors_opening(self):
         doors = list(filter(lambda obj: isinstance(obj, Door), self.objects))
