@@ -15,16 +15,31 @@ class Room:
         self.number = number  # Unique identifier for this room
         self.visited = False  # Status which shows if room was visited
         self.objects = []
-        self.spawn = (320, 240)
+        self.spawn = (320, 25)
 
     def make_objects(self):  # Method which make doors and walls for this room.
-        self.objects = [Wall(0, 160, 640, 10), Wall(0, 320, 640, 10), Wall(0, 160, 10, 170), Wall(630, 160, 10, 170)]
-        if self.left_way:  # Add a door to the left if the current room has a left connection.
-            self.objects.append(Door(10, 200, 20, 80, 'left'))
-        if self.right_way:  # Add a door to the right if the current room has a right connection.
-            self.objects.append(Door(610, 200, 20, 80, 'right'))
-        if self.back_way:  # Add a door at the back if the current room has a back connection.
-            self.objects.append(Door(280, 170, 80, 20, 'back'))
+        if self.left_way and self.right_way:
+            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
+                                 Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
+                                 Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
+                                 Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
+                                 Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
+
+        elif self.left_way:
+            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 320), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 210, 10), Wall(210, 320, 10, 160), Wall(0, 150, 210, 10),
+                                 Wall(0, 150, 10, 330), Wall(10, 470, 200, 10), Door(70, 460, 80, 10, 'left')])
+        elif self.right_way:
+            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 160), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 200, 10), Wall(420, 320, 10, 160), Wall(430, 150, 210, 10),
+                                 Wall(630, 150, 10, 330), Wall(430, 470, 200, 10), Door(490, 460, 80, 10, 'right')])
+
+        else:
+            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 330), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 200, 10)])
+
+        if self.back_way:
+            self.objects.append(Door(280, 10, 80, 10, 'back'))
 
 
 def random_maze(size, back_way=None):
@@ -48,7 +63,7 @@ class Point:
     """Represents a movable character in the game with a defined position, radius, and speed"""
     def __init__(self, radius, speed):  # Initialize attributes.
         self.x = 320  # Starting x-coordinate of the character on the screen.
-        self.y = 240  # Starting y-coordinate of the character on the screen.
+        self.y = 25  # Starting y-coordinate of the character on the screen.
         self.radius = radius  # Radius of the circle representing the character.
         self.speed = speed  # Speed at which the character moves.
         self.colour = (255, 255, 255)  # Colour of point
@@ -73,7 +88,7 @@ class Game:
     """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
         collision detection, and rendering of game elements to the screen."""
     def __init__(self):  # initialize all attributes (features) of game
-        self.point = Point(10, 5)  # Initialize the character with specified radius and speed.
+        self.point = Point(5, 5)  # Initialize the character with specified radius and speed.
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
         self.maze = random_maze(7)  # Generate a maze structure with 7 rooms.
         self.current_room = self.maze  # Start the character in the initial room of the maze.
@@ -108,10 +123,10 @@ class Game:
         new_room = None
         if door.direction == 'left':
             new_room = self.current_room.left_way
-            self.current_room.spawn = (40, 240)
+            self.current_room.spawn = (110, 455)
         elif door.direction == 'right':
             new_room = self.current_room.right_way
-            self.current_room.spawn = (600, 240)
+            self.current_room.spawn = (520, 455)
         elif door.direction == 'back':
             new_room = self.current_room.back_way
             self.current_room.spawn = (320, 240)
