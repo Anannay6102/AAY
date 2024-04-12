@@ -4,66 +4,11 @@ import random
 pygame.init()
 
 
-class Room:
-    """This class represents a room within a maze. Each room is essentially a node in a tree/graph structure, with
-    potential connections in three directions: back, left, and right. These connections are to other instances of Room,
-    allowing for the dynamic construction of a maze."""
-    def __init__(self, number, back_way=None):  # Initialize attributes
-        self.back_way = back_way  # Room from which this room was entered, if any (parent node)
-        self.right_way = None  # Room that will be to the right of this room (right node)
-        self.left_way = None  # Room that will be to the left of this room (left node)
-        self.number = number  # Unique identifier for this room
-        self.visited = False  # Status which shows if room was visited
-        self.objects = []
-        self.spawn = (320, 25)
-
-    def make_objects(self):  # Method which make doors and walls for this room.
-        if self.left_way and self.right_way:
-            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
-                                 Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
-                                 Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
-                                 Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
-                                 Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
-
-        elif self.left_way:
-            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 320), Wall(220, 0, 200, 10),
-                                 Wall(220, 320, 210, 10), Wall(210, 320, 10, 160), Wall(0, 150, 210, 10),
-                                 Wall(0, 150, 10, 330), Wall(10, 470, 200, 10), Door(70, 460, 80, 10, 'left')])
-        elif self.right_way:
-            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 160), Wall(220, 0, 200, 10),
-                                 Wall(220, 320, 200, 10), Wall(420, 320, 10, 160), Wall(430, 150, 210, 10),
-                                 Wall(630, 150, 10, 330), Wall(430, 470, 200, 10), Door(490, 460, 80, 10, 'right')])
-
-        else:
-            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 330), Wall(220, 0, 200, 10),
-                                 Wall(220, 320, 200, 10)])
-
-        if self.back_way:
-            self.objects.append(Door(280, 10, 80, 10, 'back'))
-
-
-def random_maze(size, back_way=None):
-    """Constructs a tree/graph structure maze of 'Room' instances in a recursive manner. The maze is
-    generated randomly, with the possibility of different configurations each time the function is called. The maze's
-    structure is determined by randomly splitting the remaining 'size' between the left and right paths at each step
-    until the base case of 'size' equal to 0 is reached.
-    from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
-    if size == 0:  # If there are no more rooms to create,
-        return None  # return None
-    left_size = random.randint(0, size - 1)  # Randomly determine the size of the left branch of the maze.
-    right_size = size - 1 - left_size  # The remaining size is allocated to the right branch.
-    room = Room(size, back_way)  # Create the current room with the given 'size' as its identifier.
-    room.left_way = random_maze(left_size, room)  # Recursively create the left branches of the maze from this room.
-    room.right_way = random_maze(right_size, room)  # Recursively create the right branches of the maze from this room.
-    room.make_objects()  # Create objects for this room.
-    return room  # Return the current 'room' as the root of this segment of the maze.
-
-
 class Point:
     """Represents a movable character in the game with a defined position, radius, and speed"""
     def __init__(self, radius, speed):  # Initialize attributes.
         self.x = 320  # Starting x-coordinate of the character on the screen.
-        self.y = 25  # Starting y-coordinate of the character on the screen.
+        self.y = 20  # Starting y-coordinate of the character on the screen.
         self.radius = radius  # Radius of the circle representing the character.
         self.speed = speed  # Speed at which the character moves.
         self.colour = (255, 255, 255)  # Colour of point
@@ -84,14 +29,72 @@ class Door:
         self.direction = direction  # Direction of door, which define the next door 1
 
 
+class Room:
+    """This class represents a room within a maze. Each room is essentially a node in a tree/graph structure, with
+    potential connections in three directions: back, left, and right. These connections are to other instances of Room,
+    allowing for the dynamic construction of a maze."""
+    def __init__(self, back_way=None):  # Initialize attributes
+        self.back_way = back_way  # Room from which this room was entered, if any (parent node)
+        self.right_way = None  # Room that will be to the right of this room (right node)
+        self.left_way = None  # Room that will be to the left of this room (left node)
+        self.visited = False  # Status which shows if room was visited
+        self.objects = []  # All objects of room, It will be described in make_objects method
+        self.spawn = (320, 25)  # The spawn coordinates are used when we visit a room several times
+
+    def make_objects(self):  # Method which make doors and walls for this room.
+        if self.left_way and self.right_way:
+            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
+                                 Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
+                                 Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
+                                 Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
+                                 Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
+        elif self.left_way:
+            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 320), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 210, 10), Wall(210, 320, 10, 160), Wall(0, 150, 210, 10),
+                                 Wall(0, 150, 10, 330), Wall(10, 470, 200, 10), Door(70, 460, 80, 10, 'left')])
+        elif self.right_way:
+            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 160), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 200, 10), Wall(420, 320, 10, 160), Wall(430, 150, 210, 10),
+                                 Wall(630, 150, 10, 330), Wall(430, 470, 200, 10), Door(490, 460, 80, 10, 'right')])
+        else:
+            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 330), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 200, 10)])
+        if self.back_way:
+            self.objects.append(Door(280, 10, 80, 10, 'back'))
+        else:
+            self.visited = True
+
+
+class Maze:
+    """Constructs a tree/graph structure maze of 'Room' instances in a recursive manner. The maze is
+       generated randomly, has configurations each time the function is called. The maze's structure is determined by
+       randomly splitting the remaining 'size' between the left and right path at each step until the base case of
+       'size' equal to 0 is reached.
+       from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
+    def __init__(self, size):
+        self.size = size
+        self.start_room = self.generate_random_maze(self.size)
+        
+
+    def generate_random_maze(self, size, back_way=None):
+        if size == 0:  # If there are no more rooms to create,
+            return None  # return None
+        left_size = random.randint(0, size - 1)  # Randomly determine the size of the left branch of the maze.
+        right_size = size - 1 - left_size  # The remaining size is allocated to the right branch.
+        room = Room(back_way)  # Create the current room with the given 'size' as its identifier.
+        room.left_way = self.generate_random_maze(left_size, room)  # Create left branches of maze from this room.
+        room.right_way = self.generate_random_maze(right_size, room)  # Create right branches of maze from this room.
+        room.make_objects()  # Create objects for this room.
+        return room  # Return the current 'room' as the root of this segment of the maze.
+
+
 class Game:
     """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
         collision detection, and rendering of game elements to the screen."""
     def __init__(self):  # initialize all attributes (features) of game
         self.point = Point(5, 5)  # Initialize the character with specified radius and speed.
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
-        self.maze = random_maze(7)  # Generate a maze structure with 7 rooms.
-        self.current_room = self.maze  # Start the character in the initial room of the maze.
+        self.current_room = Maze(7).start_room  # Start the character in the initial room of the maze.
         self.mini_game = MiniGame(self.screen)
         self.objects = self.current_room.objects  # All current objects that will be interacted with.
 
@@ -129,7 +132,7 @@ class Game:
             self.current_room.spawn = (520, 455)
         elif door.direction == 'back':
             new_room = self.current_room.back_way
-            self.current_room.spawn = (320, 240)
+            self.current_room.spawn = (320, 25)
         self.current_room = new_room
         self.objects = self.current_room.objects
         if not self.current_room.visited:
