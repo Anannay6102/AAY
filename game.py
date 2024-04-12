@@ -74,7 +74,11 @@ class Maze:
     def __init__(self, size):
         self.size = size
         self.start_room = self.generate_random_maze(self.size)
-        
+        self.leaf_rooms = []
+        self.find_leaf_rooms(self.start_room)
+        if self.leaf_rooms:
+            exit_room = random.choice(self.leaf_rooms)
+            exit_room.objects.append(Door(280, 310, 80, 10, 'exit'))  # This will add an exit door to the chosen leaf room
 
     def generate_random_maze(self, size, back_way=None):
         if size == 0:  # If there are no more rooms to create,
@@ -86,6 +90,13 @@ class Maze:
         room.right_way = self.generate_random_maze(right_size, room)  # Create right branches of maze from this room.
         room.make_objects()  # Create objects for this room.
         return room  # Return the current 'room' as the root of this segment of the maze.
+
+    def find_leaf_rooms(self, room):
+        if room is not None:
+            if not room.left_way and not room.right_way:
+                self.leaf_rooms.append(room)
+            self.find_leaf_rooms(room.left_way)
+            self.find_leaf_rooms(room.right_way)
 
 
 class Game:
@@ -133,6 +144,8 @@ class Game:
         elif door.direction == 'back':
             new_room = self.current_room.back_way
             self.current_room.spawn = (320, 25)
+        elif door.direction == 'exit':
+            self.win()
         self.current_room = new_room
         self.objects = self.current_room.objects
         if not self.current_room.visited:
@@ -146,6 +159,18 @@ class Game:
             if door.figure.collidepoint(self.point.x, self.point.y):
                 self.change_room(door)
                 break
+
+    def win(self):
+        text = pygame.font.Font(None, 36).render('Congratulations, you won', True, (255, 255, 255))
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return
+            self.screen.fill((0, 0, 0))
+            self.screen.blit(text, (50, 50))
+            pygame.display.flip()
+            pygame.time.Clock().tick(60)
 
     def point_rendering(self):
         # Draw a white circle on the screen at the point's position with its radius
