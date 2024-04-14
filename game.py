@@ -27,15 +27,15 @@ class Door:
     """Represents a door in the game, allowing the character to move between rooms."""
     def __init__(self, x, y, width, height, direction):  # Initialize attributes.
         self.figure = pygame.Rect(x, y, width, height)  # The rectangular area the door occupies.
-        self.colour = (0, 255, 255)  # The rectangular area the door occupies.
+        self.colour = (0, 255, 255)  # Default color (cyan).
         self.direction = direction  # Direction of door, which define the next door 1
         if direction == 'exit':
-            self.colour = (0, 255, 0)
+            self.colour = (0, 255, 0)  # If it is exit door color is red.
 
 
 class Room:
     _id_counter = 0
-    """This class represents a room within a maze. Each room is essentially a node in a tree/graph structure, with
+    """This class represents a room within a maze. Each room is essentially a node in a tree structure, with
     potential connections in three directions: back, left, and right. These connections are to other instances of Room,
     allowing for the dynamic construction of a maze."""
     def __init__(self, back_way=None):  # Initialize attributes
@@ -46,7 +46,7 @@ class Room:
         self.left_way = None  # Room that will be to the left of this room (left node)
         self.visited = False  # Status which shows if room was visited
         self.is_exit = False
-        self.room_objects = []  # All objects of room, It will be described in make_objects method
+        self.room_objects = []  # All objects of room, will be described in make_objects method
         self.spawn = (320, 25)  # The spawn coordinates are used when we visit a room several times
 
     def make_room_objects(self):  # Method which make doors and walls for this room.
@@ -76,30 +76,32 @@ class Room:
 
 class Maze:
     """Constructs a tree/graph structure maze of 'Room' instances in a recursive manner. The maze is
-       generated randomly, has configurations each time the function is called. The maze's structure is determined by
-       randomly splitting the remaining 'size' between the left and right path at each step until the base case of
-       'size' equal to 0 is reached.
-       from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
+       generated randomly, has configurations each time the function is called."""
     def __init__(self, size):
         self.size = size
+        self.rooms = []
         self.start_room = self.generate_random_maze(self.size)
         self.leaf_rooms = []
         self.find_leaf_rooms(self.start_room)
         if self.leaf_rooms:
-            exit_room = random.choice(self.leaf_rooms)
-            exit_room.room_objects.append(Door(280, 310, 80, 10, 'exit'))
-            exit_room.is_exit = True
+            self.exit_room = random.choice(self.leaf_rooms)
+            self.exit_room.room_objects.append(Door(280, 310, 80, 10, 'exit'))
+            self.exit_room.is_exit = True
         self.steps_to_exit = self.dijkstra_shortest_path()
 
     def generate_random_maze(self, size, back_way=None):
+        """The maze's structure is determined by randomly splitting the remaining 'size' between the left and right path
+        at each step until the base case of 'size' equal to 0 is reached.
+        from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
         if size == 0:  # If there are no more rooms to create,
             return None  # return None
         left_size = random.randint(0, size - 1)  # Randomly determine the size of the left branch of the maze.
         right_size = size - 1 - left_size  # The remaining size is allocated to the right branch.
-        room = Room(back_way)  # Create the current room with the given 'size' as its identifier.
+        room = Room(back_way)  # Create the room
         room.left_way = self.generate_random_maze(left_size, room)  # Create left branches of maze from this room.
         room.right_way = self.generate_random_maze(right_size, room)  # Create right branches of maze from this room.
         room.make_room_objects()  # Create objects for this room.
+        self.rooms.append(room)
         return room  # Return the current 'room' as the root of this segment of the maze.
 
     def find_leaf_rooms(self, room):
@@ -110,43 +112,25 @@ class Maze:
             self.find_leaf_rooms(room.right_way)
 
     def dijkstra_shortest_path(self):
-        distances = {room: (sys.maxsize, None) for room in self.get_all_rooms()}
-        distances[self.start_room] = (0, None)
+        # Dictionary to store the minimum cost to reach each room from the start room
+        min_cost = {room: float('inf') for room in self.rooms}
+        min_cost[self.start_room] = 0
+
+        # Priority queue to explore the room with the smallest distance first
         priority_queue = [(0, self.start_room.id, self.start_room)]
 
         while priority_queue:
-            current_distance, _, current_room = heapq.heappop(priority_queue)
+            current_cost, _, current_room = heapq.heappop(priority_queue)
 
-            if distances[current_room][0] < current_distance:
-                continue
+            # Explore the neighbor rooms if a cheaper path to them is found
+            for direction in ['left_way', 'right_way', 'back_way']:
+                neighbor = getattr(current_room, direction)
+                if neighbor is not None and min_cost[current_room] + 1 < min_cost[neighbor]:
+                    min_cost[neighbor] = min_cost[current_room] + 1
+                    heapq.heappush(priority_queue, (min_cost[neighbor], neighbor.id, neighbor))
 
-            for neighbor in [current_room.left_way, current_room.right_way, current_room.back_way]:
-                if neighbor is None:
-                    continue
-                new_distance = current_distance + 1
-                if new_distance < distances[neighbor][0]:
-                    distances[neighbor] = (new_distance, current_room)
-                    heapq.heappush(priority_queue, (new_distance, neighbor.id, neighbor))
-                    if neighbor.is_exit:
-                        return new_distance
-
-        return -1
-
-    def get_all_rooms(self):
-        # Обход всех комнат для заполнения словаря distances
-        all_rooms = []
-        stack = [self.start_room]
-        while stack:
-            room = stack.pop()
-            if room not in all_rooms:
-                all_rooms.append(room)
-                if room.left_way:
-                    stack.append(room.left_way)
-                if room.right_way:
-                    stack.append(room.right_way)
-                if room.back_way:
-                    stack.append(room.back_way)
-        return all_rooms
+        # The cost to reach the exit room
+        return min_cost[self.exit_room]
 
 
 class Game:
