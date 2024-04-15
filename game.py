@@ -30,7 +30,9 @@ class Door:
         self.colour = (0, 255, 255)  # Default color (cyan).
         self.direction = direction  # Direction of door, which define the next door 1
         if direction == 'exit':
-            self.colour = (0, 255, 0)  # If it is exit door color is red.
+            self.colour = (0, 255, 0)  # If it is exit door color is green.
+        if direction == 'impasse':
+            self.colour = (255, 0, 0)  # If it is impasse door color is red.
 
 
 class Room:
@@ -44,34 +46,27 @@ class Room:
         self.back_way = back_way  # Room from which this room was entered, if any (parent node)
         self.right_way = None  # Room that will be to the right of this room (right node)
         self.left_way = None  # Room that will be to the left of this room (left node)
-        self.visited = False  # Status which shows if room was visited
-        self.is_exit = False
-        self.room_objects = []  # All objects of room, will be described in make_objects method
-        self.spawn = (320, 25)  # The spawn coordinates are used when we visit a room several times
+        self.objects = []  # All objects of room, will be described in make_objects method
 
     def make_room_objects(self):  # Method which make doors and walls for this room.
         if self.left_way and self.right_way:
-            self.room_objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
-                                      Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
-                                      Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
-                                      Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
-                                      Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
+            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
+                                 Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
+                                 Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
+                                 Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
+                                 Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
         elif self.left_way:
-            self.room_objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 320), Wall(220, 0, 200, 10),
-                                      Wall(220, 320, 210, 10), Wall(210, 320, 10, 160), Wall(0, 150, 210, 10),
-                                      Wall(0, 150, 10, 330), Wall(10, 470, 200, 10), Door(70, 460, 80, 10, 'left')])
+            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 320), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 210, 10), Wall(210, 320, 10, 160), Wall(0, 150, 210, 10),
+                                 Wall(0, 150, 10, 330), Wall(10, 470, 200, 10), Door(70, 460, 80, 10, 'left')])
         elif self.right_way:
-            self.room_objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 160), Wall(220, 0, 200, 10),
-                                      Wall(220, 320, 200, 10), Wall(420, 320, 10, 160), Wall(430, 150, 210, 10),
-                                      Wall(630, 150, 10, 330), Wall(430, 470, 200, 10),
-                                      Door(490, 460, 80, 10, 'right')])
+            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 160), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 200, 10), Wall(420, 320, 10, 160), Wall(430, 150, 210, 10),
+                                 Wall(630, 150, 10, 330), Wall(430, 470, 200, 10),
+                                 Door(490, 460, 80, 10, 'right')])
         else:
-            self.room_objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 330), Wall(220, 0, 200, 10),
-                                      Wall(220, 320, 200, 10)])
-        if self.back_way:
-            self.room_objects.append(Door(280, 10, 80, 10, 'back'))
-        else:
-            self.visited = True
+            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 330), Wall(220, 0, 200, 10),
+                                 Wall(220, 320, 200, 10)])
 
 
 class Maze:
@@ -80,14 +75,11 @@ class Maze:
     def __init__(self, size):
         self.size = size
         self.rooms = []
-        self.start_room = self.generate_random_maze(self.size)
         self.leaf_rooms = []
+        self.start_room = self.generate_random_maze(self.size)
+        self.exit_room = None
         self.find_leaf_rooms(self.start_room)
-        if self.leaf_rooms:
-            self.exit_room = random.choice(self.leaf_rooms)
-            self.exit_room.room_objects.append(Door(280, 310, 80, 10, 'exit'))
-            self.exit_room.is_exit = True
-        self.steps_to_exit = self.dijkstra_shortest_path()
+        self.make_doors_for_leaf_rooms()
 
     def generate_random_maze(self, size, back_way=None):
         """The maze's structure is determined by randomly splitting the remaining 'size' between the left and right path
@@ -111,24 +103,29 @@ class Maze:
             self.find_leaf_rooms(room.left_way)
             self.find_leaf_rooms(room.right_way)
 
-    def dijkstra_shortest_path(self):
+    def make_doors_for_leaf_rooms(self):
+        self.exit_room = random.choice(self.leaf_rooms)
+        self.exit_room.objects.append(Door(280, 310, 80, 10, 'exit'))
+        self.exit_room.is_exit = True
+        self.leaf_rooms.remove(self.exit_room)
+        for leaf_room in self.leaf_rooms:
+            leaf_room.objects.append(Door(280, 310, 80, 10, 'impasse'))
+
+    def dijkstra_shortest_path(self, room):
+        """https://www.geeksforgeeks.org/introduction-to-dijkstras-shortest-path-algorithm/"""
         # Dictionary to store the minimum cost to reach each room from the start room
         min_cost = {room: float('inf') for room in self.rooms}
         min_cost[self.start_room] = 0
-
         # Priority queue to explore the room with the smallest distance first
-        priority_queue = [(0, self.start_room.id, self.start_room)]
-
+        priority_queue = [(0, room.id, self.start_room)]
         while priority_queue:
             current_cost, _, current_room = heapq.heappop(priority_queue)
-
             # Explore the neighbor rooms if a cheaper path to them is found
             for direction in ['left_way', 'right_way', 'back_way']:
                 neighbor = getattr(current_room, direction)
                 if neighbor is not None and min_cost[current_room] + 1 < min_cost[neighbor]:
                     min_cost[neighbor] = min_cost[current_room] + 1
                     heapq.heappush(priority_queue, (min_cost[neighbor], neighbor.id, neighbor))
-
         # The cost to reach the exit room
         return min_cost[self.exit_room]
 
@@ -136,16 +133,15 @@ class Maze:
 class Game:
     """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
         collision detection, and rendering of game elements to the screen."""
-
     def __init__(self):  # initialize all attributes (features) of game
         self.point = Point(5, 5)  # Initialize the character with specified radius and speed.
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
         self.steps_to_exit = 0
         self.maze = Maze(7)
         self.current_room = self.maze.start_room  # Start the character in the initial room of the maze.
-        self.room_objects = self.current_room.room_objects  # All current objects that will be interacted with.
         self.mini_game = MiniGame(self.screen)
         self.running = True
+        self.score = 0
 
     def move_point(self):  # Method which moves point
         old_x, old_y = self.point.x, self.point.y  # Safe coordinates in case of wall_collision
@@ -162,62 +158,101 @@ class Game:
             self.point.x, self.point.y = old_x, old_y
 
     def check_wall_collision(self):
-        walls = list(filter(lambda obj: isinstance(obj, Wall), self.room_objects))
+        walls = list(filter(lambda obj: isinstance(obj, Wall), self.current_room.objects))
         point_rect = pygame.Rect(self.point.x - self.point.radius, self.point.y - self.point.radius,
                                  self.point.radius * 2, self.point.radius * 2)
         return any(wall.figure.colliderect(point_rect) for wall in walls)
 
-    def change_room(self, door):
-        if door.direction == 'exit':
-            self.game_over_menu()
-        else:
-            direction_to_room = {'left': (self.current_room.left_way, (110, 455)),
-                                 'right': (self.current_room.right_way, (520, 455)),
-                                 'back': (self.current_room.back_way, (320, 25))}
-            new_room, self.current_room.spawn = direction_to_room[door.direction]
-            if not new_room.visited:
-                self.mini_game.run()
-                new_room.visited = True
-            self.point.x, self.point.y = new_room.spawn
-            self.room_objects = new_room.room_objects
-            self.current_room = new_room
-            self.steps_to_exit += 1
-
     def game_logic(self):
         self.move_point()
-        doors = list(filter(lambda obj: isinstance(obj, Door), self.room_objects))
+        doors = list(filter(lambda obj: isinstance(obj, Door), self.current_room.objects))
         for door in doors:
             if door.figure.collidepoint(self.point.x, self.point.y):
                 self.change_room(door)
                 break
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                self.pause_menu()
 
-    def game_over_menu(self):
-        message = f'{self.steps_to_exit} vs {self.maze.steps_to_exit}'
-        text = pygame.font.Font(None, 36).render(message, True, (255, 255, 255))
+    def change_room(self, door):
+        if door.direction == 'exit':
+            self.victory_menu()
+        elif door.direction == 'impasse':
+            self.defeat_menu()
+        else:
+            direction_to_room = {'left': self.current_room.left_way,
+                                 'right': self.current_room.right_way}
+            new_room = direction_to_room[door.direction]
+            self.mini_game.run()
+            self.point.x, self.point.y = 320, 25  # The spawn coordinates
+            self.current_room = new_room
+
+    def victory_menu(self):
+        text1 = pygame.font.Font(None, 36).render(f'Victory!', True, (255, 255, 255))
+        text2 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
+        text3 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
-                    pygame.quit()
                     self.running = False
                     return
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                     self.restart_game()
                     return
             self.screen.fill((0, 0, 0))
-            self.screen.blit(text, (50, 50))
+            self.screen.blit(text1, (50, 50))
+            self.screen.blit(text2, (50, 75))
+            self.screen.blit(text3, (50, 100))
+            pygame.display.flip()
+
+    def defeat_menu(self):
+        score = self.maze.dijkstra_shortest_path(self.current_room)
+        text1 = pygame.font.Font(None, 36).render(f'Defeat!,{score}', True, (255, 255, 255))
+        text2 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
+        text3 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
+                    self.running = False
+                    return
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    self.restart_game()
+                    return
+            self.screen.fill((0, 0, 0))
+            self.screen.blit(text1, (50, 50))
+            self.screen.blit(text2, (50, 75))
+            self.screen.blit(text3, (50, 100))
+            pygame.display.flip()
+
+    def pause_menu(self):
+        text1 = pygame.font.Font(None, 36).render(f'Press q to quit the game!', True, (255, 255, 255))
+        text2 = pygame.font.Font(None, 36).render(f'Press r to restart the game!', True, (255, 255, 255))
+        text3 = pygame.font.Font(None, 36).render(f'Press c to proceed the game!', True, (255, 255, 255))
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
+                    self.running = False
+                    return
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    self.restart_game()
+                    return
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
+                    return
+            self.screen.fill((0, 0, 0))
+            self.screen.blit(text1, (50, 50))
+            self.screen.blit(text2, (50, 75))
+            self.screen.blit(text3, (50, 100))
             pygame.display.flip()
 
     def restart_game(self):
         self.maze = Maze(7)
         self.current_room = self.maze.start_room
-        self.room_objects = self.current_room.room_objects
-        self.steps_to_exit = 0
-        self.point = Point(5, 5)
+        self.point.x, self.point.y = 320, 25
 
     def render(self):  # Define a method to render (draw) the game state on the screen
         self.screen.fill((0, 0, 0))  # Fill the screen with black color
         pygame.draw.circle(self.screen, self.point.colour, (self.point.x, self.point.y), self.point.radius)
-        for obj in self.room_objects:
+        for obj in self.current_room.objects:
             pygame.draw.rect(self.screen, obj.colour, obj.figure)  # Draw all room objects
         pygame.display.flip()  # Update the screen
 
@@ -251,3 +286,4 @@ class MiniGame:
 
 game = Game()  # create an instance of the 'Game' class
 game.run()  # start the game loop by calling the 'run' method of the game instance
+pygame.quit()
