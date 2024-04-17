@@ -1,147 +1,205 @@
 import pygame
 import random
-import sys
-import heapq
+
 
 pygame.init()
 
 
+class Stack:
+    """
+    A stack class that implements the basic operations of a stack data structure following the Last-in-First-Out
+    (LIFO) principle. It is used to implement depth-first search (DFS) algorithms, as shown in the 'dfs_search' and
+    'dfs_traversal' methods of the Maze class.
+    """
+
+    def __init__(self):
+        """
+        Constructor for the Stack class. Initializes a new empty stack.
+        """
+        self.items = []  # This empty list will hold elements such as room and path length tuples.
+
+    def is_empty(self):
+        """
+        Checks whether the stack is empty.
+        """
+        return len(self.items) == 0  # Returns True if there are no elements in the stack.
+
+    def push(self, item):
+        """
+        Adds a new item to the top of the stack.
+        """
+        self.items.append(item)  # Adds the item to the end of the list, which represents the top of the stack.
+
+    def pop(self):
+        """
+        Removes and returns the top item of the stack if the stack is not empty.
+        """
+        if not self.is_empty():  # Check if the stack has elements before popping to avoid errors.
+            return self.items.pop()  # Removes the last item from the list and returns it.
+
+    def peek(self):
+        """
+        Returns the top item of the stack without removing it, if the stack is not empty.
+        """
+        if not self.is_empty():  # Check if there are items before peeking to avoid accessing an empty list.
+            return self.items[-1]  # Returns the last element of the list without removing it.
+
+    def size(self):
+        """
+        Returns the number of items in the stack.
+        """
+        return len(self.items)  # Returns the total number of elements in the
+
+
 class Point:
-    """Represents a movable character in the game with a defined position, radius, and speed"""
-    def __init__(self, radius, speed):  # Initialize attributes.
+    """
+    Represents the player's character in the game, modeled as a movable point. This class is used for the game's
+    dynamics, including movement and interaction with objects within the rooms.
+    """
+    def __init__(self):
         self.x = 320  # Starting x-coordinate of the character on the screen.
-        self.y = 20  # Starting y-coordinate of the character on the screen.
-        self.radius = radius  # Radius of the circle representing the character.
-        self.speed = speed  # Speed at which the character moves.
-        self.colour = (255, 255, 255)  # Colour of point
+        self.y = 30  # Starting y-coordinate of the character on the screen.
+        self.radius = 5  # Radius of the circle representing the character.
+        self.speed = 5  # Speed at which the character moves.
+        self.colour = (255, 255, 255)  # Colour of point (white).
 
 
 class Wall:
-    """Represents an immovable wall in the game. Walls define the boundaries and obstacles in rooms."""
+    """
+    Represents an immovable wall in the game. Walls define the boundaries and obstacles in rooms. Prevents a point from
+    passing through it, described in the check_wall_collision method of the game class.
+    """
     def __init__(self, x, y, width, height):  # Initialize attributes.
         self.figure = pygame.Rect(x, y, width, height)  # The rectangular area the wall occupies.
-        self.colour = (255, 255, 255)  # Colour of wall
+        self.colour = (255, 255, 255)  # Colour of wall (white).
 
 
 class Door:
-    """Represents a door in the game, allowing the character to move between rooms."""
+    """
+    Represents the passageways between rooms in the game, enabling the character to move across different parts of
+    the maze.
+    """
     def __init__(self, x, y, width, height, direction):  # Initialize attributes.
         self.figure = pygame.Rect(x, y, width, height)  # The rectangular area the door occupies.
         self.colour = (0, 255, 255)  # Default color (cyan).
-        self.direction = direction  # Direction of door, which define the next door 1
-        if direction == 'exit':
-            self.colour = (0, 255, 0)  # If it is exit door color is green.
-        if direction == 'impasse':
-            self.colour = (255, 0, 0)  # If it is impasse door color is red.
+        self.direction = direction  # Direction of door, which define the next room
 
 
 class Room:
-    _id_counter = 0
-    """This class represents a room within a maze. Each room is essentially a node in a tree structure, with
-    potential connections in three directions: back, left, and right. These connections are to other instances of Room,
-    allowing for the dynamic construction of a maze."""
-    def __init__(self, back_way=None):  # Initialize attributes
-        self.id = Room._id_counter
-        Room._id_counter += 1
-        self.back_way = back_way  # Room from which this room was entered, if any (parent node)
-        self.right_way = None  # Room that will be to the right of this room (right node)
-        self.left_way = None  # Room that will be to the left of this room (left node)
-        self.objects = []  # All objects of room, will be described in make_objects method
-
-    def make_room_objects(self):  # Method which make doors and walls for this room.
-        if self.left_way and self.right_way:
-            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
-                                 Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
-                                 Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
-                                 Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
-                                 Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
-        elif self.left_way:
-            self.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 320), Wall(220, 0, 200, 10),
-                                 Wall(220, 320, 210, 10), Wall(210, 320, 10, 160), Wall(0, 150, 210, 10),
-                                 Wall(0, 150, 10, 330), Wall(10, 470, 200, 10), Door(70, 460, 80, 10, 'left')])
-        elif self.right_way:
-            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 160), Wall(220, 0, 200, 10),
-                                 Wall(220, 320, 200, 10), Wall(420, 320, 10, 160), Wall(430, 150, 210, 10),
-                                 Wall(630, 150, 10, 330), Wall(430, 470, 200, 10),
-                                 Door(490, 460, 80, 10, 'right')])
-        else:
-            self.objects.extend([Wall(210, 0, 10, 330), Wall(420, 0, 10, 330), Wall(220, 0, 200, 10),
-                                 Wall(220, 320, 200, 10)])
+    """
+    Represents a room within the maze, which is essentially a node in the game's graph structure. Rooms contain objects
+    like walls and doors, and link to other rooms, shaping the maze's pathways.
+    """
+    def __init__(self, back=None):
+        self.adjacent_rooms = {'back': back, 'right': None, 'left': None}  # Connections to adjacent rooms.
+        self.visited = False  # Tracks whether the room has been visited by player, used in dfs_traversal algorithms.
+        self.objects = []  # Holds the room's objects (walls, doors).
+        self.spawn = (320, 30)  # Default spawn location for the point when entering the room.
 
 
 class Maze:
-    """Constructs a tree/graph structure maze of 'Room' instances in a recursive manner. The maze is
-       generated randomly, has configurations each time the function is called."""
     def __init__(self, size):
         self.size = size
         self.rooms = []
         self.leaf_rooms = []
         self.start_room = self.generate_random_maze(self.size)
-        self.exit_room = None
         self.find_leaf_rooms(self.start_room)
-        self.make_doors_for_leaf_rooms()
+        self.exit_room = self.find_exit_room()
+        self.make_objects()
 
-    def generate_random_maze(self, size, back_way=None):
-        """The maze's structure is determined by randomly splitting the remaining 'size' between the left and right path
-        at each step until the base case of 'size' equal to 0 is reached.
-        from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
-        if size == 0:  # If there are no more rooms to create,
-            return None  # return None
-        left_size = random.randint(0, size - 1)  # Randomly determine the size of the left branch of the maze.
-        right_size = size - 1 - left_size  # The remaining size is allocated to the right branch.
-        room = Room(back_way)  # Create the room
-        room.left_way = self.generate_random_maze(left_size, room)  # Create left branches of maze from this room.
-        room.right_way = self.generate_random_maze(right_size, room)  # Create right branches of maze from this room.
-        room.make_room_objects()  # Create objects for this room.
+    def generate_random_maze(self, size, back=None):
+        """from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
+        if size == 0:
+            return None
+        left_size = random.randint(0, size - 1)
+        right_size = size - 1 - left_size
+        room = Room(back)
+        room.adjacent_rooms['left'] = self.generate_random_maze(left_size, room)
+        room.adjacent_rooms['right'] = self.generate_random_maze(right_size, room)
         self.rooms.append(room)
-        return room  # Return the current 'room' as the root of this segment of the maze.
+        return room
 
     def find_leaf_rooms(self, room):
         if room is not None:
-            if not room.left_way and not room.right_way:
+            if not room.adjacent_rooms['right'] and not room.adjacent_rooms['left']:
                 self.leaf_rooms.append(room)
-            self.find_leaf_rooms(room.left_way)
-            self.find_leaf_rooms(room.right_way)
+            if room.adjacent_rooms['left']:
+                self.find_leaf_rooms(room.adjacent_rooms['left'])
+            if room.adjacent_rooms['right']:
+                self.find_leaf_rooms(room.adjacent_rooms['right'])
 
-    def make_doors_for_leaf_rooms(self):
-        self.exit_room = random.choice(self.leaf_rooms)
-        self.exit_room.objects.append(Door(280, 310, 80, 10, 'exit'))
-        self.exit_room.is_exit = True
-        self.leaf_rooms.remove(self.exit_room)
-        for leaf_room in self.leaf_rooms:
-            leaf_room.objects.append(Door(280, 310, 80, 10, 'impasse'))
+    def find_exit_room(self):
+        exit_room = random.choice(self.leaf_rooms)
+        exit_room.objects.append(Door(280, 460, 80, 10, 'exit'))
+        return exit_room
 
-    def dijkstra_shortest_path(self, room):
-        """https://www.geeksforgeeks.org/introduction-to-dijkstras-shortest-path-algorithm/"""
-        # Dictionary to store the minimum cost to reach each room from the start room
-        min_cost = {room: float('inf') for room in self.rooms}
-        min_cost[self.start_room] = 0
-        # Priority queue to explore the room with the smallest distance first
-        priority_queue = [(0, room.id, self.start_room)]
-        while priority_queue:
-            current_cost, _, current_room = heapq.heappop(priority_queue)
-            # Explore the neighbor rooms if a cheaper path to them is found
-            for direction in ['left_way', 'right_way', 'back_way']:
-                neighbor = getattr(current_room, direction)
-                if neighbor is not None and min_cost[current_room] + 1 < min_cost[neighbor]:
-                    min_cost[neighbor] = min_cost[current_room] + 1
-                    heapq.heappush(priority_queue, (min_cost[neighbor], neighbor.id, neighbor))
-        # The cost to reach the exit room
-        return min_cost[self.exit_room]
+    def dfs_search(self):
+        stack = Stack()
+        stack.push((self.start_room, 1))
+        checked = set()
+        while not stack.is_empty():
+            current_room, current_path_length = stack.pop()
+            if current_room in checked:
+                continue
+            checked.add(current_room)
+            if current_room == self.exit_room:
+                return current_path_length
+            for adjacent_room in current_room.adjacent_rooms.values():
+                if adjacent_room is not None and adjacent_room not in checked:
+                    stack.push((adjacent_room, current_path_length + 1))
+
+    def dfs_traversal(self):
+        stack = Stack()
+        stack.push(self.start_room)
+        checked = set()  # Keep track of visited rooms to avoid processing them again
+        visited_rooms_count = 0  # Counter for rooms with visited == True
+        while not stack.is_empty():
+            current_room = stack.pop()
+            if current_room in checked:
+                continue
+            checked.add(current_room)
+            if current_room and current_room.visited:
+                visited_rooms_count += 1
+                # Push adjacent rooms to the stack if they haven't been visited
+            for adjacent_room in current_room.adjacent_rooms.values():
+                if adjacent_room is not None and adjacent_room not in checked:
+                    stack.push(adjacent_room)
+        return visited_rooms_count
+
+    def make_objects(self):
+        for room in self.rooms:
+            if room.adjacent_rooms['left'] and room.adjacent_rooms['right']:
+                room.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
+                                     Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
+                                     Wall(0, 150, 10, 330), Wall(630, 150, 10, 330), Wall(220, 320, 200, 10),
+                                     Wall(220, 0, 200, 10), Wall(10, 470, 200, 10), Wall(430, 470, 200, 10),
+                                     Door(70, 460, 80, 10, 'left'), Door(490, 460, 80, 10, 'right')])
+            elif room.adjacent_rooms['left']:
+                room.objects.extend([Wall(210, 0, 10, 640), Wall(420, 0, 10, 640), Wall(220, 0, 200, 10),
+                                     Wall(220, 470, 200, 10), Door(280, 460, 80, 10, 'left')])
+            elif room.adjacent_rooms['right']:
+                room.objects.extend([Wall(210, 0, 10, 640), Wall(420, 0, 10, 640), Wall(220, 0, 200, 10),
+                                     Wall(220, 470, 200, 10), Door(280, 460, 80, 10, 'right')])
+            else:
+                room.objects.extend([Wall(210, 0, 10, 640), Wall(420, 0, 10, 640), Wall(220, 0, 200, 10),
+                                     Wall(220, 470, 200, 10)])
+            if room.adjacent_rooms['back']:
+                room.objects.append(Door(280, 10, 80, 10, 'back'))
+            else:
+                room.visited = True
 
 
 class Game:
     """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
         collision detection, and rendering of game elements to the screen."""
+
     def __init__(self):  # initialize all attributes (features) of game
-        self.point = Point(5, 5)  # Initialize the character with specified radius and speed.
+        self.point = Point()  # Initialize the character with specified radius and speed.
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
-        self.steps_to_exit = 0
         self.maze = Maze(7)
         self.current_room = self.maze.start_room  # Start the character in the initial room of the maze.
         self.mini_game = MiniGame(self.screen)
         self.running = True
-        self.score = 0
 
     def move_point(self):  # Method which moves point
         old_x, old_y = self.point.x, self.point.y  # Safe coordinates in case of wall_collision
@@ -150,18 +208,34 @@ class Game:
             self.point.x -= self.point.speed
         if keys[pygame.K_RIGHT]:
             self.point.x += self.point.speed
+        if self.check_wall_collision():
+            self.point.x = old_x
         if keys[pygame.K_UP]:
             self.point.y -= self.point.speed
         if keys[pygame.K_DOWN]:
             self.point.y += self.point.speed
         if self.check_wall_collision():
-            self.point.x, self.point.y = old_x, old_y
+            self.point.y = old_y
 
     def check_wall_collision(self):
         walls = list(filter(lambda obj: isinstance(obj, Wall), self.current_room.objects))
         point_rect = pygame.Rect(self.point.x - self.point.radius, self.point.y - self.point.radius,
                                  self.point.radius * 2, self.point.radius * 2)
         return any(wall.figure.colliderect(point_rect) for wall in walls)
+
+    def change_room(self, door):
+        if door.direction == 'exit':
+            self.game_over_menu()
+            return
+        spawn_offset = -15 if door.direction in ['left', 'right'] else 15
+        self.current_room.spawn = (self.point.x, self.point.y + spawn_offset)
+        new_room = self.current_room.adjacent_rooms[door.direction]
+        self.point.spawn = self.current_room.spawn
+        self.point.x, self.point.y = new_room.spawn
+        self.current_room = new_room
+        if not new_room.visited:
+            self.mini_game.run()
+            new_room.visited = True
 
     def game_logic(self):
         self.move_point()
@@ -174,40 +248,11 @@ class Game:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.pause_menu()
 
-    def change_room(self, door):
-        if door.direction == 'exit':
-            self.victory_menu()
-        elif door.direction == 'impasse':
-            self.defeat_menu()
-        else:
-            direction_to_room = {'left': self.current_room.left_way,
-                                 'right': self.current_room.right_way}
-            new_room = direction_to_room[door.direction]
-            self.mini_game.run()
-            self.point.x, self.point.y = 320, 25  # The spawn coordinates
-            self.current_room = new_room
-
-    def victory_menu(self):
-        text1 = pygame.font.Font(None, 36).render(f'Victory!', True, (255, 255, 255))
-        text2 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
-        text3 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
-                    self.running = False
-                    return
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    self.restart_game()
-                    return
-            self.screen.fill((0, 0, 0))
-            self.screen.blit(text1, (50, 50))
-            self.screen.blit(text2, (50, 75))
-            self.screen.blit(text3, (50, 100))
-            pygame.display.flip()
-
-    def defeat_menu(self):
-        score = self.maze.dijkstra_shortest_path(self.current_room)
-        text1 = pygame.font.Font(None, 36).render(f'Defeat!,{score}', True, (255, 255, 255))
+    def game_over_menu(self):
+        min_dis_path = self.maze.dfs_search()
+        player_dis_path = self.maze.dfs_traversal()
+        score = int(min_dis_path/player_dis_path*100)
+        text1 = pygame.font.Font(None, 36).render(f'Your score: {score}', True, (255, 255, 255))
         text2 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
         text3 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
         while True:
@@ -225,9 +270,9 @@ class Game:
             pygame.display.flip()
 
     def pause_menu(self):
-        text1 = pygame.font.Font(None, 36).render(f'Press q to quit the game!', True, (255, 255, 255))
-        text2 = pygame.font.Font(None, 36).render(f'Press r to restart the game!', True, (255, 255, 255))
-        text3 = pygame.font.Font(None, 36).render(f'Press c to proceed the game!', True, (255, 255, 255))
+        text1 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
+        text2 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
+        text3 = pygame.font.Font(None, 36).render(f'Press c to proceed the game', True, (255, 255, 255))
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
@@ -247,7 +292,7 @@ class Game:
     def restart_game(self):
         self.maze = Maze(7)
         self.current_room = self.maze.start_room
-        self.point.x, self.point.y = 320, 25
+        self.point.x, self.point.y = 320, 30
 
     def render(self):  # Define a method to render (draw) the game state on the screen
         self.screen.fill((0, 0, 0))  # Fill the screen with black color
@@ -286,4 +331,3 @@ class MiniGame:
 
 game = Game()  # create an instance of the 'Game' class
 game.run()  # start the game loop by calling the 'run' method of the game instance
-pygame.quit()
