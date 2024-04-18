@@ -48,7 +48,7 @@ class Stack:
         """
         Returns the number of items in the stack.
         """
-        return len(self.items)  # Returns the total number of elements in the
+        return len(self.items)  # Returns the total number of elements in the stack
 
 
 class Point:
@@ -130,40 +130,38 @@ class Maze:
 
     def find_exit_room(self):
         exit_room = random.choice(self.leaf_rooms)
-        exit_room.objects.append(Door(280, 460, 80, 10, 'exit'))
         return exit_room
 
-    def dfs_search(self):
+    def find_length_of_shortest_path(self):
         stack = Stack()
         stack.push((self.start_room, 1))
         checked = set()
         while not stack.is_empty():
             current_room, current_path_length = stack.pop()
-            if current_room in checked:
-                continue
-            checked.add(current_room)
             if current_room == self.exit_room:
                 return current_path_length
-            for adjacent_room in current_room.adjacent_rooms.values():
-                if adjacent_room is not None and adjacent_room not in checked:
-                    stack.push((adjacent_room, current_path_length + 1))
+            if current_room not in checked:
+                checked.add(current_room)
+                for direction in ['left', 'right']:
+                    adjacent_room = current_room.adjacent_rooms.get(direction)
+                    if adjacent_room and adjacent_room not in checked:
+                        stack.push((adjacent_room, current_path_length + 1))
 
-    def dfs_traversal(self):
+    def find_visited_rooms_number(self):
         stack = Stack()
         stack.push(self.start_room)
         checked = set()  # Keep track of visited rooms to avoid processing them again
         visited_rooms_count = 0  # Counter for rooms with visited == True
         while not stack.is_empty():
             current_room = stack.pop()
-            if current_room in checked:
-                continue
-            checked.add(current_room)
-            if current_room and current_room.visited:
+            if current_room.visited:
                 visited_rooms_count += 1
-                # Push adjacent rooms to the stack if they haven't been visited
-            for adjacent_room in current_room.adjacent_rooms.values():
-                if adjacent_room is not None and adjacent_room not in checked:
-                    stack.push(adjacent_room)
+            if current_room not in checked:
+                checked.add(current_room)
+                for direction in ['left', 'right']:
+                    adjacent_room = current_room.adjacent_rooms.get(direction)
+                    if adjacent_room and adjacent_room not in checked:
+                        stack.push(adjacent_room)
         return visited_rooms_count
 
     def make_objects(self):
@@ -187,6 +185,8 @@ class Maze:
                 room.objects.append(Door(280, 10, 80, 10, 'back'))
             else:
                 room.visited = True
+            if room == self.exit_room:
+                room.objects.append(Door(280, 460, 80, 10, 'exit'))
 
 
 class Game:
@@ -249,8 +249,8 @@ class Game:
                 self.pause_menu()
 
     def game_over_menu(self):
-        min_dis_path = self.maze.dfs_search()
-        player_dis_path = self.maze.dfs_traversal()
+        min_dis_path = self.maze.find_length_of_shortest_path()
+        player_dis_path = self.maze.find_visited_rooms_number()
         score = int(min_dis_path/player_dis_path*100)
         text1 = pygame.font.Font(None, 36).render(f'Your score: {score}', True, (255, 255, 255))
         text2 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
