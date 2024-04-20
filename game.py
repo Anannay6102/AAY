@@ -1,6 +1,6 @@
 import pygame
 import random
-
+import pdb
 
 pygame.init()
 
@@ -8,10 +8,9 @@ pygame.init()
 class Stack:
     """
     A stack class that implements the basic operations of a stack data structure following the Last-in-First-Out
-    (LIFO) principle. It is used to implement depth-first search (DFS) algorithms, as shown in the 'dfs_search' and
-    'dfs_traversal' methods of the Maze class.
+    (LIFO) principle. It is used to implement depth-first search (DFS) algorithms, as shown in the
+    'find_length_of_shortest_path' and 'dfs_traversal' methods of the Maze class.
     """
-
     def __init__(self):
         """
         Constructor for the Stack class. Initializes a new empty stack.
@@ -92,80 +91,134 @@ class Room:
     """
     def __init__(self, back=None):
         self.adjacent_rooms = {'back': back, 'right': None, 'left': None}  # Connections to adjacent rooms.
-        self.visited = False  # Tracks whether the room has been visited by player, used in dfs_traversal algorithms.
+        self.visited = False  # Tracks whether the room has been visited by player, used in dfs algorithms.
         self.objects = []  # Holds the room's objects (walls, doors).
         self.spawn = (320, 30)  # Default spawn location for the point when entering the room.
 
 
 class Maze:
+    """
+    Represents the overall maze structure in the game. It manages the creation, connectivity, and functionality
+    of rooms, acting as a container for the entire maze through which the player navigates.
+    """
     def __init__(self, size):
-        self.size = size
-        self.rooms = []
-        self.leaf_rooms = []
-        self.start_room = self.generate_random_maze(self.size)
-        self.find_leaf_rooms(self.start_room)
-        self.exit_room = self.find_exit_room()
-        self.make_objects()
+        self.size = size  # The size of the maze (number of rooms/nodes).
+        self.rooms = []  # A list to store all room objects created during maze generation.
+        self.leaf_rooms = []  # List to hold rooms that do not have child rooms, potential candidates for exits.
+        self.start_room = self.generate_random_maze(self.size)  # Generates the maze starting from the root.
+        self.find_leaf_rooms(self.start_room)  # Identifies all leaf rooms in the maze.
+        self.exit_room = random.choice(self.leaf_rooms)  # Selects one of the leaf rooms to be the exit.
+        self.make_objects()  # Places objects (walls and doors) in each room based on its connections.
 
     def generate_random_maze(self, size, back=None):
-        """from https://www.geeksforgeeks.org/random-binary-tree-generator-using-python/"""
-        if size == 0:
+        """
+        Recursively generates a random maze structure. It uses a binary tree generation logic where each room can split
+        into two child rooms (left and right).
+        """
+        if size == 0:  # Do nothing if subtree do not have rooms/nodes
             return None
-        left_size = random.randint(0, size - 1)
-        right_size = size - 1 - left_size
-        room = Room(back)
-        room.adjacent_rooms['left'] = self.generate_random_maze(left_size, room)
-        room.adjacent_rooms['right'] = self.generate_random_maze(right_size, room)
-        self.rooms.append(room)
-        return room
+        left_size = random.randint(0, size - 1)  # Randomly determine the number of rooms in the left subtree.
+        right_size = size - 1 - left_size  # The remaining rooms go into the right subtree.
+        room = Room(back)  # Create a new room, setting its back connection to its parent.
+        room.adjacent_rooms['left'] = self.generate_random_maze(left_size, room)  # Recursively generate left child.
+        room.adjacent_rooms['right'] = self.generate_random_maze(right_size, room)  # Recursively generate right child.
+        self.rooms.append(room)  # Add the newly created room to the maze's room list.
+        return room  # Return the processed root with children
 
     def find_leaf_rooms(self, room):
-        if room is not None:
-            if not room.adjacent_rooms['right'] and not room.adjacent_rooms['left']:
-                self.leaf_rooms.append(room)
-            if room.adjacent_rooms['left']:
-                self.find_leaf_rooms(room.adjacent_rooms['left'])
-            if room.adjacent_rooms['right']:
-                self.find_leaf_rooms(room.adjacent_rooms['right'])
-
-    def find_exit_room(self):
-        exit_room = random.choice(self.leaf_rooms)
-        return exit_room
+        """
+        Recursively identifies rooms that do not have any children (leaf rooms), which are potential exit points.
+        """
+        if room is not None:  # If room exists then
+            if not room.adjacent_rooms['right'] and not room.adjacent_rooms['left']:  # If node do not have children
+                self.leaf_rooms.append(room)  # it means that this is leaf node, so add to leaf rooms list
+            if room.adjacent_rooms['left']:  # If node has left child then
+                self.find_leaf_rooms(room.adjacent_rooms['left'])  # Check that left child for leaf rooms
+            if room.adjacent_rooms['right']:  # If node has right child then
+                self.find_leaf_rooms(room.adjacent_rooms['right'])  # Check that right child for leaf rooms
 
     def find_length_of_shortest_path(self):
-        stack = Stack()
-        stack.push((self.start_room, 1))
-        checked = set()
-        while not stack.is_empty():
-            current_room, current_path_length = stack.pop()
-            if current_room == self.exit_room:
-                return current_path_length
-            if current_room not in checked:
-                checked.add(current_room)
-                for direction in ['left', 'right']:
-                    adjacent_room = current_room.adjacent_rooms.get(direction)
-                    if adjacent_room and adjacent_room not in checked:
-                        stack.push((adjacent_room, current_path_length + 1))
+        """
+        Calculate the length of the shortest path from a starting point to the exit room. The method assumes that there
+        is a 'back' link in each room leading towards the starting room.
+        """
+        room = self.exit_room  # Initialize 'room' with the exit room.
+        length = 0  # Initialize the length of the path as 0.
+        while room:  # Loop until there are no more rooms linked with 'back'.
+            length += 1  # Increment the path length by 1 for each room traversed.
+            room = room.adjacent_rooms.get('back')  # Move to the adjacent room that is linked with 'back'.
+        return length  # Return the total length of the path from the start to the exit.
 
     def find_visited_rooms_number(self):
-        stack = Stack()
-        stack.push(self.start_room)
-        checked = set()  # Keep track of visited rooms to avoid processing them again
-        visited_rooms_count = 0  # Counter for rooms with visited == True
-        while not stack.is_empty():
-            current_room = stack.pop()
-            if current_room.visited:
-                visited_rooms_count += 1
-            if current_room not in checked:
-                checked.add(current_room)
-                for direction in ['left', 'right']:
-                    adjacent_room = current_room.adjacent_rooms.get(direction)
-                    if adjacent_room and adjacent_room not in checked:
-                        stack.push(adjacent_room)
-        return visited_rooms_count
+        """
+        A stack-based depth-first traversal of the maze, counting the number of rooms marked as visited by the player
+        during gameplay, using LIFO data structure.
+        """
+        stack = Stack()   # Initialize a stack to manage the rooms during the depth-first traversal.
+        stack.push(self.start_room)  # Start the traversal from the starting room.
+        visited_rooms_count = 0  # Initialize a counter to keep track of rooms marked as visited.
+        while not stack.is_empty():  # Continue until all rooms are visited.
+            current_room = stack.pop()  # Pop the top room from the stack to explore it.
+            if current_room.visited:  # If the room has been visited,
+                visited_rooms_count += 1  # increment the count.
+            # Check and add adjacent rooms to the stack for further exploration.
+            for direction in ['left', 'right']:  # Only left and right directions are considered.
+                adjacent_room = current_room.adjacent_rooms.get(direction)
+                if adjacent_room:  # If there is an adjacent room,
+                    stack.push(adjacent_room)  # push it to the stack for traversal.
+        return visited_rooms_count  # Return the count of visited rooms.
+
+    def get_next_room(self, current_room):
+        """
+        Determines the next room the player should move to from the current room to progress towards the exit. This
+        method uses the concept of The Lowest Common Ancestor (LCA) algorithm to find the most direct path to the exit.
+        """
+        # Trace the path from the current room back to the root.
+        room = current_room  # Safe
+        path_to_current = []
+        while room:
+            path_to_current.append(room)
+            room = room.adjacent_rooms.get('back')
+        # Trace the path from the exit room back to the root.
+        room = self.exit_room
+        path_to_exit = []
+        while room:
+            path_to_exit.append(room)
+            room = room.adjacent_rooms.get('back')
+
+        '''# Debug:
+        print("Path to current:", [id(r) for r in path_to_current])
+        print("Path to exit:", [id(r) for r in path_to_exit])'''
+
+        # Find the Lowest Common Ancestor (LCA) of the current room and the exit room.
+        # The LCA is the last common room shared between the two paths traced above.
+        lca = None
+        while path_to_current and path_to_exit and path_to_current[-1] == path_to_exit[-1]:
+            lca = path_to_current.pop()
+            path_to_exit.pop()
+
+        '''# Debug:
+        print("LCA:", id(lca) if lca else "None")
+        print("Popped path to current:", [id(r) for r in path_to_current])
+        print("Popped path to exit:", [id(r) for r in path_to_exit])'''
+
+        # Determine the next room to move towards based on the paths to the LCA. If there are rooms left in the
+        # path_to_exit after finding the LCA, it means we need to move towards the exit from LCA. If there is more than
+        # one room in the current path, the next room is the first room towards the LCA. Otherwise, select the next room
+        # in the path to the exit, ensuring the movement is directed towards the exit.
+        if len(path_to_exit) > 0:
+            next_room = path_to_current[1] if len(path_to_current) > 1 else \
+                (lca if len(path_to_current) > 0 else path_to_exit[-1])
+            return next_room
+        return current_room
 
     def make_objects(self):
+        self.exit_room.objects.append(Door(280, 460, 80, 10, 'exit'))
         for room in self.rooms:
+            if room.adjacent_rooms['back']:
+                room.objects.append(Door(280, 10, 80, 10, 'back'))
+            else:
+                room.visited = True
             if room.adjacent_rooms['left'] and room.adjacent_rooms['right']:
                 room.objects.extend([Wall(210, 0, 10, 160), Wall(420, 0, 10, 160), Wall(210, 320, 10, 160),
                                      Wall(420, 320, 10, 160), Wall(0, 150, 210, 10), Wall(430, 150, 210, 10),
@@ -181,12 +234,6 @@ class Maze:
             else:
                 room.objects.extend([Wall(210, 0, 10, 640), Wall(420, 0, 10, 640), Wall(220, 0, 200, 10),
                                      Wall(220, 470, 200, 10)])
-            if room.adjacent_rooms['back']:
-                room.objects.append(Door(280, 10, 80, 10, 'back'))
-            else:
-                room.visited = True
-            if room == self.exit_room:
-                room.objects.append(Door(280, 460, 80, 10, 'exit'))
 
 
 class Game:
@@ -245,8 +292,34 @@ class Game:
                 self.change_room(door)
                 break
         for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                self.get_hint()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.pause_menu()
+
+    def get_hint(self):
+        #  pdb.set_trace()
+        hint_room = self.maze.get_next_room(self.current_room)
+        left_room = self.current_room.adjacent_rooms.get('left')
+        right_room = self.current_room.adjacent_rooms.get('right')
+        back_room = self.current_room.adjacent_rooms.get('back')
+        if (left_room or right_room) and not (left_room and right_room):
+            forward_room = left_room if left_room else right_room
+            if hint_room == forward_room:
+                self.current_room.objects[-1].colour = (0, 255, 0)
+            elif hint_room == back_room:
+                self.current_room.objects[0].colour = (0, 255, 0)
+            else:
+                self.current_room.objects[0].colour = (0, 255, 0)
+        else:
+            if hint_room == left_room:
+                self.current_room.objects[-2].colour = (0, 255, 0)
+            elif hint_room == right_room:
+                self.current_room.objects[-1].colour = (0, 255, 0)
+            elif hint_room == back_room:
+                self.current_room.objects[0].colour = (0, 255, 0)
+            else:
+                self.current_room.objects[0].colour = (0, 255, 0)
 
     def game_over_menu(self):
         min_dis_path = self.maze.find_length_of_shortest_path()
