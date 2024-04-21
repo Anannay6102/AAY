@@ -1,6 +1,11 @@
+from typing import List, Any, Tuple, Dict, Optional, Union
 import pygame
 import random
 import pdb
+
+from pygame import Rect, Surface, SurfaceType
+from pygame.event import Event
+from pygame.key import ScancodeWrapper
 
 pygame.init()
 
@@ -11,32 +16,34 @@ class Stack:
     (LIFO) principle. It is used to implement depth-first search (DFS) algorithms, as shown in the
     'find_length_of_shortest_path' and 'dfs_traversal' methods of the Maze class.
     """
+    items: List[Any]
+
     def __init__(self):
         """
         Constructor for the Stack class. Initializes a new empty stack.
         """
         self.items = []  # This empty list will hold elements such as room and path length tuples.
 
-    def is_empty(self):
+    def is_empty(self) -> bool:
         """
         Checks whether the stack is empty.
         """
         return len(self.items) == 0  # Returns True if there are no elements in the stack.
 
-    def push(self, item):
+    def push(self, item: object):
         """
         Adds a new item to the top of the stack.
         """
         self.items.append(item)  # Adds the item to the end of the list, which represents the top of the stack.
 
-    def pop(self):
+    def pop(self) -> Optional[object]:
         """
         Removes and returns the top item of the stack if the stack is not empty.
         """
         if not self.is_empty():  # Check if the stack has elements before popping to avoid errors.
             return self.items.pop()  # Removes the last item from the list and returns it.
 
-    def peek(self):
+    def peek(self) -> Optional[object]:
         """
         Returns the top item of the stack without removing it, if the stack is not empty.
         """
@@ -55,12 +62,18 @@ class Point:
     Represents the player's character in the game, modeled as a movable point. This class is used for the game's
     dynamics, including movement and interaction with objects within the rooms.
     """
+    x: int
+    y: int
+    radius: int
+    speed: int
+    colour: Tuple[int, int, int]
+
     def __init__(self):
         self.x = 320  # Starting x-coordinate of the character on the screen.
         self.y = 30  # Starting y-coordinate of the character on the screen.
         self.radius = 5  # Radius of the circle representing the character.
         self.speed = 5  # Speed at which the character moves.
-        self.colour = (255, 255, 255)  # Colour of point (white).
+        self.colour = (255, 255, 255)  # Colour of point (white).s
 
 
 class Wall:
@@ -68,7 +81,10 @@ class Wall:
     Represents an immovable wall in the game. Walls define the boundaries and obstacles in rooms. Prevents a point from
     passing through it, described in the check_wall_collision method of the game class.
     """
-    def __init__(self, x, y, width, height):  # Initialize attributes.
+    figure: Rect
+    colour: Tuple[int, int, int]
+
+    def __init__(self, x: int, y: int, width: int, height: int):  # Initialize attributes.
         self.figure = pygame.Rect(x, y, width, height)  # The rectangular area the wall occupies.
         self.colour = (255, 255, 255)  # Colour of wall (white).
 
@@ -78,7 +94,11 @@ class Door:
     Represents the passageways between rooms in the game, enabling the character to move across different parts of
     the maze.
     """
-    def __init__(self, x, y, width, height, direction):  # Initialize attributes.
+    figure: Rect
+    colour: Tuple[int, int, int]
+    direction: str
+
+    def __init__(self, x: int, y: int, width: int, height: int, direction: str):
         self.figure = pygame.Rect(x, y, width, height)  # The rectangular area the door occupies.
         self.colour = (0, 255, 255)  # Default color (cyan).
         self.direction = direction  # Direction of door, which define the next room
@@ -89,7 +109,12 @@ class Room:
     Represents a room within the maze, which is essentially a node in the game's graph structure. Rooms contain objects
     like walls and doors, and link to other rooms, shaping the maze's pathways.
     """
-    def __init__(self, back=None):
+    adjacent_rooms: Dict[str, Optional[any]]
+    visited: bool
+    objects: List[Wall or Door]
+    spawn: Tuple[int, int]
+
+    def __init__(self, back: any):
         self.adjacent_rooms = {'back': back, 'right': None, 'left': None}  # Connections to adjacent rooms.
         self.visited = False  # Tracks whether the room has been visited by player, used in dfs algorithms.
         self.objects = []  # Holds the room's objects (walls, doors).
@@ -101,7 +126,13 @@ class Maze:
     Represents the overall maze structure in the game. It manages the creation, connectivity, and functionality
     of rooms, acting as a container for the entire maze through which the player navigates.
     """
-    def __init__(self, size):
+    size: int
+    rooms: List[Room]
+    leaf_rooms: List[Room]
+    start_room: Room
+    exit_room: Room
+
+    def __init__(self, size: int):
         self.size = size  # The size of the maze (number of rooms/nodes).
         self.rooms = []  # A list to store all room objects created during maze generation.
         self.leaf_rooms = []  # List to hold rooms that do not have child rooms, potential candidates for exits.
@@ -110,7 +141,7 @@ class Maze:
         self.exit_room = random.choice(self.leaf_rooms)  # Selects one of the leaf rooms to be the exit.
         self.make_objects()  # Places objects (walls and doors) in each room based on its connections.
 
-    def generate_random_maze(self, size, back=None):
+    def generate_random_maze(self, size: int, back: Room = None) -> Room or None:
         """
         Recursively generates a random maze structure. It uses a binary tree generation logic where each room can split
         into two child rooms (left and right).
@@ -125,7 +156,7 @@ class Maze:
         self.rooms.append(room)  # Add the newly created room to the maze's room list.
         return room  # Return the processed root with children
 
-    def find_leaf_rooms(self, room):
+    def find_leaf_rooms(self, room) -> None:
         """
         Recursively identifies rooms that do not have any children (leaf rooms), which are potential exit points.
         """
@@ -137,26 +168,26 @@ class Maze:
             if room.adjacent_rooms['right']:  # If node has right child then
                 self.find_leaf_rooms(room.adjacent_rooms['right'])  # Check that right child for leaf rooms
 
-    def find_length_of_shortest_path(self):
+    def find_length_of_shortest_path(self) -> int:
         """
         Calculate the length of the shortest path from a starting point to the exit room. The method assumes that there
         is a 'back' link in each room leading towards the starting room.
         """
         room = self.exit_room  # Initialize 'room' with the exit room.
-        length = 0  # Initialize the length of the path as 0.
+        length: int = 0  # Initialize the length of the path as 0.
         while room:  # Loop until there are no more rooms linked with 'back'.
             length += 1  # Increment the path length by 1 for each room traversed.
             room = room.adjacent_rooms.get('back')  # Move to the adjacent room that is linked with 'back'.
         return length  # Return the total length of the path from the start to the exit.
 
-    def find_visited_rooms_number(self):
+    def find_visited_rooms_number(self) -> int:
         """
         A stack-based depth-first traversal of the maze, counting the number of rooms marked as visited by the player
         during gameplay, using LIFO data structure.
         """
-        stack = Stack()   # Initialize a stack to manage the rooms during the depth-first traversal.
+        stack: Stack = Stack()  # Initialize a stack to manage the rooms during the depth-first traversal.
         stack.push(self.start_room)  # Start the traversal from the starting room.
-        visited_rooms_count = 0  # Initialize a counter to keep track of rooms marked as visited.
+        visited_rooms_count: int = 0  # Initialize a counter to keep track of rooms marked as visited.
         while not stack.is_empty():  # Continue until all rooms are visited.
             current_room = stack.pop()  # Pop the top room from the stack to explore it.
             if current_room.visited:  # If the room has been visited,
@@ -168,23 +199,22 @@ class Maze:
                     stack.push(adjacent_room)  # push it to the stack for traversal.
         return visited_rooms_count  # Return the count of visited rooms.
 
-    def get_next_room(self, current_room):
+    def get_next_room(self, current_room: Room) -> Room:
         """
         Determines the next room the player should move to from the current room to progress towards the exit. This
         method uses the concept of The Lowest Common Ancestor (LCA) algorithm to find the most direct path to the exit.
+        This method is used to give the player a hint, as described in the get_hint game class.
         """
-        # Trace the path from the current room back to the root.
-        room = current_room  # Safe
-        path_to_current = []
-        while room:
-            path_to_current.append(room)
-            room = room.adjacent_rooms.get('back')
-        # Trace the path from the exit room back to the root.
+        room: Room = current_room
+        path_to_current: List[Room] = []  # Trace the path from the current room back to the root.
+        while room:  # Loop until there are no more rooms linked with 'back'.
+            path_to_current.append(room)  # Add this room to path list
+            room = room.adjacent_rooms.get('back')  # Move to the adjacent room that is linked with 'back'.
         room = self.exit_room
-        path_to_exit = []
-        while room:
-            path_to_exit.append(room)
-            room = room.adjacent_rooms.get('back')
+        path_to_exit: List[Room] = []  # Trace the path from the exit room back to the root.
+        while room:  # Loop until there are no more rooms linked with 'back'.
+            path_to_exit.append(room)  # Add this room to path list
+            room = room.adjacent_rooms.get('back')  # Move to the adjacent room that is linked with 'back'.
 
         '''# Debug:
         print("Path to current:", [id(r) for r in path_to_current])
@@ -192,7 +222,7 @@ class Maze:
 
         # Find the Lowest Common Ancestor (LCA) of the current room and the exit room.
         # The LCA is the last common room shared between the two paths traced above.
-        lca = None
+        lca: Room or None = None
         while path_to_current and path_to_exit and path_to_current[-1] == path_to_exit[-1]:
             lca = path_to_current.pop()
             path_to_exit.pop()
@@ -203,21 +233,24 @@ class Maze:
         print("Popped path to exit:", [id(r) for r in path_to_exit])'''
 
         # Determine the next room to move towards based on the paths to the LCA. If there are rooms left in the
-        # path_to_exit after finding the LCA, it means we need to move towards the exit from LCA. If there is more than
-        # one room in the current path, the next room is the first room towards the LCA. Otherwise, select the next room
-        # in the path to the exit, ensuring the movement is directed towards the exit.
+        # path_to_exit after finding the LCA, it means that there are some rooms between the exit and the current room,
+        # otherwise we are already in exit room. If there is more than one room in the current path, the next room is
+        # the first room towards the LCA. Otherwise, the current room is LCA, therefore, we return the next room leading
+        # to the exit
         if len(path_to_exit) > 0:
-            next_room = path_to_current[1] if len(path_to_current) > 1 else \
+            next_room: Optional[Room] = path_to_current[1] if len(path_to_current) > 1 else \
                 (lca if len(path_to_current) > 0 else path_to_exit[-1])
             return next_room
-        return current_room
+        else:
+            return current_room
 
-    def make_objects(self):
+    def make_objects(self) -> None:
         """
         After creating the structure of the maze, we add the necessary objects to each room based on their
-        connections. The doors are in certain positions, this will help when getting a hint (get_hint Gamme class method
+        connections. The doors are in certain positions, this will help when getting a hint (get_hint Game class method)
         """
         self.exit_room.objects.append(Door(280, 460, 80, 10, 'exit'))
+        room: Room
         for room in self.rooms:
             if room.adjacent_rooms['back']:
                 room.objects.append(Door(280, 10, 80, 10, 'back'))
@@ -243,50 +276,59 @@ class Maze:
 class Game:
     """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
         collision detection, and rendering of game elements to the screen."""
+    point: Point
+    screen: Union[Surface, SurfaceType]
+    maze: Maze
+    current_room: Room
+    running: bool
 
-    def __init__(self):  # initialize all attributes (features) of game
-        self.point = Point()  # Initialize the character with specified radius and speed.
+    def __init__(self):
+        self.point = Point()  # Initialize the character.
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
         self.maze = Maze(7)  # Create the maze with 7 rooms
         self.current_room = self.maze.start_room  # Start the character in the initial room of the maze.
-        self.running = True
+        self.running = True  # Flag for
 
-    def move_point(self):  # Method which moves point
+    def move_point(self) -> None:  # Method which moves point
         """
         Handles the movement of the player's character based on keyboard input. The function adjusts the character's
         position and checks for collisions with walls to prevent moving through them.
         """
+        old_x: int
+        old_y: int
         old_x, old_y = self.point.x, self.point.y  # Store old coordinates in case of collision.
-        keys = pygame.key.get_pressed()  # Get the state of all keyboard keys.
+        keys: ScancodeWrapper = pygame.key.get_pressed()  # Get the state of all keyboard keys.
         # Update character's position based on arrow keys pressed.
         if keys[pygame.K_LEFT]:
             self.point.x -= self.point.speed
         if keys[pygame.K_RIGHT]:
             self.point.x += self.point.speed
-        if self.check_wall_collision():   # Revert to old position if collision occurs.
-            # print('collision with a wall')
+        if self.check_wall_collision():  # Revert to old position if collision occurs.
+            # print('Collision with a wall')
             self.point.x = old_x
         if keys[pygame.K_UP]:
             self.point.y -= self.point.speed
         if keys[pygame.K_DOWN]:
             self.point.y += self.point.speed
-        if self.check_wall_collision():   # Revert to old position if collision occurs.
-            # print('collision with a wall')
+        if self.check_wall_collision():  # Revert to old position if collision occurs.
+            # print('Collision with a wall')
             self.point.y = old_y
+        # I have specifically separated the detection of collisions with walls by coordinates so that the point can
+        # slide along the walls
 
-    def check_wall_collision(self):
+    def check_wall_collision(self) -> bool:
         """
         Checks for a collision between the player's character and any walls in the current room.
         Returns True if a collision is detected, preventing movement through walls.
         """
         # Check collision of the point's rectangle with each wall's rectangle.
-        walls = list(filter(lambda obj: isinstance(obj, Wall), self.current_room.objects))
+        walls: List[Wall] = list(filter(lambda obj: isinstance(obj, Wall), self.current_room.objects))
         # Create a rectangle for the point based on its position and radius.
-        point_rect = pygame.Rect(self.point.x - self.point.radius, self.point.y - self.point.radius,
-                                 self.point.radius * 2, self.point.radius * 2)
+        point_rect: Rect = pygame.Rect(self.point.x - self.point.radius, self.point.y - self.point.radius,
+                                       self.point.radius * 2, self.point.radius * 2)
         return any(wall.figure.colliderect(point_rect) for wall in walls)
 
-    def change_room(self, door):
+    def change_room(self, door: Door) -> None:
         """
         Changes the current room of the game based on the door through which the character moves.
         This function updates the game state to reflect the new room and handles the spawn position
@@ -295,28 +337,29 @@ class Game:
         if door.direction == 'exit':
             self.game_over_menu()  # Trigger game over sequence if exiting the maze.
             return
-        #  Save the position on the x-axis and also save the y coordinate by adding/taking 15, for the upper door (back)
-        #  + for the lower ones - (left, right) to avoid continuous exit/entry into the room.
-        spawn_offset = -15 if door.direction in ['left', 'right'] else 15
+        #  Save the position on the x-axis and also save the y coordinate by adding/taking 15, adding for the upper door
+        #  (back) and taking for the lower ones (left, right) to avoid continuous exit/entry into the room.
+        spawn_offset: int = -15 if door.direction in ['left', 'right'] else 15
         # Set new spawn location in the current room
         self.current_room.spawn = (self.point.x, self.point.y + spawn_offset)
-        new_room = self.current_room.adjacent_rooms[door.direction]  # Get the new room to enter.
-        self.point.spawn = self.current_room.spawn  # Update the point's spawn position.
+        new_room: Room = self.current_room.adjacent_rooms[door.direction]  # Get the new room to enter.
         self.point.x, self.point.y = new_room.spawn  # Move the point to the new room's spawn position.
         self.current_room = new_room  # Update the current room to the new room.
         if not new_room.visited:  # If the room has not been visited
-            mini_game = MiniGame(self.screen)
+            mini_game: MiniGame = MiniGame(self.screen)
             mini_game.run()  # run a mini-game if the room has not been visited.
             new_room.visited = True  # Mark the room as visited.
 
-    def game_logic(self):
+    def game_logic(self) -> None:
         """
         Contains the main logic of the game, which is called within the game loop. It manages the movement of the
         character, checks for interactions with doors, and changes room.
         """
         self.move_point()  # Handle character movement.
-        doors = list(filter(lambda obj: isinstance(obj, Door), self.current_room.objects))  # List of all doors
-        for door in doors:   # Check if the character interacts with any door.
+        # List of all doors
+        doors: List[Door] = list(filter(lambda obj: isinstance(obj, Door), self.current_room.objects))
+        door: Door
+        for door in doors:  # Check if the character interacts with any door.
             if door.figure.collidepoint(self.point.x, self.point.y):
                 self.change_room(door)  # Change room if interacting with a door.
                 break
@@ -326,14 +369,15 @@ class Game:
         Provides a hint to the player by highlighting the door that leads closer to the exit. This method determines
         which door in the current room points towards the exit by comparing the room positions in the maze's path.
         """
-        #  pdb.set_trace()
-        hint_room = self.maze.get_next_room(self.current_room)  # Determine the next room that leads towards the exit.
-        left_room = self.current_room.adjacent_rooms.get('left')
-        right_room = self.current_room.adjacent_rooms.get('right')
-        back_room = self.current_room.adjacent_rooms.get('back')
+        # pdb.set_trace()
+        # Determine the next room that leads towards the exit.
+        hint_room: Room = self.maze.get_next_room(self.current_room)
+        left_room: Room = self.current_room.adjacent_rooms.get('left')
+        right_room: Room = self.current_room.adjacent_rooms.get('right')
+        back_room: Room = self.current_room.adjacent_rooms.get('back')
         # Highlight the door leading to the next room based on the determined path by changing door color to green.
         if (left_room or right_room) and not (left_room and right_room):
-            forward_room = left_room if left_room else right_room
+            forward_room: Room = left_room if left_room else right_room
             if hint_room == forward_room:
                 self.current_room.objects[-1].colour = (0, 255, 0)
             elif hint_room == back_room:
@@ -350,20 +394,31 @@ class Game:
             else:
                 self.current_room.objects[0].colour = (0, 255, 0)
 
-    def game_over_menu(self):
-        min_dis_path = self.maze.find_length_of_shortest_path()
-        player_dis_path = self.maze.find_visited_rooms_number()
-        score = int(min_dis_path/player_dis_path*100)
-        text1 = pygame.font.Font(None, 36).render(f'Your score: {score}', True, (255, 255, 255))
-        text2 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
-        text3 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
+    def game_over_menu(self) -> None:
+        """
+        Displays the game over menu when the player exits the maze. It calculates and displays the player's score based
+        on the shortest path to the exit compared to the path the player took. It also provides options to quit or
+        restart the game.
+        """
+        # Calculate the shortest possible path to the exit and number of visited rooms by player.
+        min_dis_path: int = self.maze.find_length_of_shortest_path()
+        player_dis_path: int = self.maze.find_visited_rooms_number()
+        score: int = int(min_dis_path / player_dis_path * 100)  # Compute the score as a percentage.
+        # Render text with the player's score and instructions for quitting or restarting.
+        text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Your score: {score}', True,
+                                                                               (255, 255, 255))
+        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press q to quit the game', True,
+                                                                               (255, 255, 255))
+        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press r to restart the game', True,
+                                                                               (255, 255, 255))
         while True:
+            event: Event
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
-                    self.running = False
+                    self.running = False  # Stop the game loop if quiting game
                     return
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    self.restart_game()
+                    self.restart_game()  # Restart the game by reinitializing the maze and game state, if triggerd.
                     return
             self.screen.fill((0, 0, 0))
             self.screen.blit(text1, (50, 50))
@@ -371,56 +426,76 @@ class Game:
             self.screen.blit(text3, (50, 100))
             pygame.display.flip()
 
-    def pause_menu(self):
-        text1 = pygame.font.Font(None, 36).render(f'Press q to quit the game', True, (255, 255, 255))
-        text2 = pygame.font.Font(None, 36).render(f'Press r to restart the game', True, (255, 255, 255))
-        text3 = pygame.font.Font(None, 36).render(f'Press c to proceed the game', True, (255, 255, 255))
+    def pause_menu(self) -> None:
+        """
+        Displays a pause menu allowing the player to either quit, restart, or continue playing the game.
+        """
+        text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press q to quit the game', True,
+                                                                               (255, 255, 255))
+        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press r to restart the game', True,
+                                                                               (255, 255, 255))
+        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press c to proceed the game', True,
+                                                                               (255, 255, 255))
         while True:
+            event: Event
             for event in pygame.event.get():
                 if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
-                    self.running = False
+                    self.running = False  # Stop the game loop if quiting game.
                     return
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    self.restart_game()
+                    self.restart_game()  # Restart the game by reinitializing the maze and game state, if triggerd.
                     return
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
-                    return
+                    return  # Continue the game by exiting the pause menu.
             self.screen.fill((0, 0, 0))
             self.screen.blit(text1, (50, 50))
             self.screen.blit(text2, (50, 75))
             self.screen.blit(text3, (50, 100))
-            pygame.display.flip()
+            pygame.display.flip()  # Update the display with the new text.
 
-    def restart_game(self):
-        self.maze = Maze(7)
-        self.current_room = self.maze.start_room
-        self.point.x, self.point.y = (320, 30)
+    def restart_game(self) -> None:
+        """
+        Restarts the game by reinitializing the maze and resetting the player's position to the starting point.
+        """
+        self.maze = Maze(7)  # Reinitialize the maze.
+        self.current_room = self.maze.start_room  # Reset the current room to the start.
+        self.point.x, self.point.y = (320, 30)  # Reset the player's position.
 
-    def render(self):  # Define a method to render (draw) the game state on the screen
-        self.screen.fill((0, 0, 0))  # Fill the screen with black color
+    def render(self) -> None:
+        """
+        Renders the current state of the game to the screen, including the player's character and any objects
+        within the current room.
+        """
+        self.screen.fill((0, 0, 0))  # Clear the screen with black.
+        # Draw the player's character as a circle on the screen.
         pygame.draw.circle(self.screen, self.point.colour, (self.point.x, self.point.y), self.point.radius)
+        # Draw each object in the current room.
         for obj in self.current_room.objects:
-            pygame.draw.rect(self.screen, obj.colour, obj.figure)  # Draw all room objects
-        pygame.display.flip()  # Update the screen
+            pygame.draw.rect(self.screen, obj.colour, obj.figure)
+        pygame.display.flip()  # Update the display to show the new drawings.
 
-    def run(self):  # Define the MAIN GAME LOOP method.
-        while self.running:  # Keep running the game loop until 'running' is False.
+    def run(self) -> None:
+        """
+        Main game loop that processes events, updates game logic, and renders the game state until the game is stopped.
+        """
+        while self.running:   # Continue running the game until the running flag is set to False.
+            event: Event
             for event in pygame.event.get():  # Process all events in the event queue.
                 if event.type == pygame.QUIT:  # If the window closure is triggered.
-                    self.running = False  # Stop the game loop.
+                    self.running = False  # Set the running flag to False, to exit the loop.
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
-                    self.get_hint()
+                    self.get_hint()  # Display a hint if 'h' is pressed.
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                    self.pause_menu()
-            self.render()  # Call the 'render' method to draw the game state on the screen.
-            self.game_logic()
+                    self.pause_menu()  # Pause the game if 'p' is pressed.
+            self.render()  # Draw the game state to the screen.
+            self.game_logic()  # Update the game logic.
 
 
 class MiniGame:
     def __init__(self, screen):
         self.screen = screen
 
-    def run(self):
+    def run(self) -> None:
         mini_game_running = True
         text = pygame.font.Font(None, 36).render('Press SPACE to finish the mini game', True, (255, 255, 255))
         while mini_game_running:
