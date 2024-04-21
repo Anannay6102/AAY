@@ -1,8 +1,9 @@
-from typing import List, Any, Tuple, Dict, Optional, Union
 import pygame
 import random
+from collections import deque
 import pdb
 
+from typing import List, Any, Tuple, Dict, Optional, Union
 from pygame import Rect, Surface, SurfaceType
 from pygame.event import Event
 from pygame.key import ScancodeWrapper
@@ -14,15 +15,15 @@ class Stack:
     """
     A stack class that implements the basic operations of a stack data structure following the Last-in-First-Out
     (LIFO) principle. It is used to implement depth-first search (DFS) algorithms, as shown in the
-    'find_length_of_shortest_path' and 'dfs_traversal' methods of the Maze class.
+    'find_visited_rooms_number' methods of the Maze class.
     """
-    items: List[Any]
+    items: deque[Any]
 
     def __init__(self):
         """
         Constructor for the Stack class. Initializes a new empty stack.
         """
-        self.items = []  # This empty list will hold elements such as room and path length tuples.
+        self.items = deque()  # This empty list will hold elements.
 
     def is_empty(self) -> bool:
         """
@@ -40,15 +41,17 @@ class Stack:
         """
         Removes and returns the top item of the stack if the stack is not empty.
         """
-        if not self.is_empty():  # Check if the stack has elements before popping to avoid errors.
-            return self.items.pop()  # Removes the last item from the list and returns it.
+        if self.is_empty():
+            raise IndexError("Pop from an empty stack")
+        return self.items.pop()
 
     def peek(self) -> Optional[object]:
         """
         Returns the top item of the stack without removing it, if the stack is not empty.
         """
-        if not self.is_empty():  # Check if there are items before peeking to avoid accessing an empty list.
-            return self.items[-1]  # Returns the last element of the list without removing it.
+        if self.is_empty():  # Check if there are items before peeking to avoid accessing an empty list.
+            raise IndexError("Peek from an empty stack")
+        return self.items[-1]  # Returns the last element of the list without removing it.
 
     def size(self):
         """
@@ -363,6 +366,7 @@ class Game:
             if door.figure.collidepoint(self.point.x, self.point.y):
                 self.change_room(door)  # Change room if interacting with a door.
                 break
+        self.render()  # Draw the game state to the screen
 
     def get_hint(self):
         """
@@ -426,33 +430,6 @@ class Game:
             self.screen.blit(text3, (50, 100))
             pygame.display.flip()
 
-    def pause_menu(self) -> None:
-        """
-        Displays a pause menu allowing the player to either quit, restart, or continue playing the game.
-        """
-        text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press q to quit the game', True,
-                                                                               (255, 255, 255))
-        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press r to restart the game', True,
-                                                                               (255, 255, 255))
-        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press c to proceed the game', True,
-                                                                               (255, 255, 255))
-        while True:
-            event: Event
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
-                    self.running = False  # Stop the game loop if quiting game.
-                    return
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    self.restart_game()  # Restart the game by reinitializing the maze and game state, if triggerd.
-                    return
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_c:
-                    return  # Continue the game by exiting the pause menu.
-            self.screen.fill((0, 0, 0))
-            self.screen.blit(text1, (50, 50))
-            self.screen.blit(text2, (50, 75))
-            self.screen.blit(text3, (50, 100))
-            pygame.display.flip()  # Update the display with the new text.
-
     def restart_game(self) -> None:
         """
         Restarts the game by reinitializing the maze and resetting the player's position to the starting point.
@@ -472,6 +449,15 @@ class Game:
         # Draw each object in the current room.
         for obj in self.current_room.objects:
             pygame.draw.rect(self.screen, obj.colour, obj.figure)
+        text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press h to get the hint', True,
+                                                                               (255, 255, 255))
+        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press r to restart the game', True,
+                                                                               (255, 255, 255))
+        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press q to quit the game', True,
+                                                                               (255, 255, 255))
+        self.screen.blit(text1, (10, 10))
+        self.screen.blit(text2, (10, 25))
+        self.screen.blit(text3, (10, 40))
         pygame.display.flip()  # Update the display to show the new drawings.
 
     def run(self) -> None:
@@ -481,14 +467,15 @@ class Game:
         while self.running:   # Continue running the game until the running flag is set to False.
             event: Event
             for event in pygame.event.get():  # Process all events in the event queue.
-                if event.type == pygame.QUIT:  # If the window closure is triggered.
-                    self.running = False  # Set the running flag to False, to exit the loop.
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
+                    self.running = False  # Stop the game loop if quiting game.
+                    return  # Set the running flag to False, to exit the loop.
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                     self.get_hint()  # Display a hint if 'h' is pressed.
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                    self.pause_menu()  # Pause the game if 'p' is pressed.
-            self.render()  # Draw the game state to the screen.
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    self.restart_game()
             self.game_logic()  # Update the game logic.
+        pygame.quit()
 
 
 class MiniGame:
