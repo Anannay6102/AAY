@@ -213,6 +213,10 @@ class Maze:
         return current_room
 
     def make_objects(self):
+        """
+        After creating the structure of the maze, we add the necessary objects to each room based on their
+        connections. The doors are in certain positions, this will help when getting a hint (get_hint Gamme class method
+        """
         self.exit_room.objects.append(Door(280, 460, 80, 10, 'exit'))
         for room in self.rooms:
             if room.adjacent_rooms['back']:
@@ -243,66 +247,91 @@ class Game:
     def __init__(self):  # initialize all attributes (features) of game
         self.point = Point()  # Initialize the character with specified radius and speed.
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
-        self.maze = Maze(7)
+        self.maze = Maze(7)  # Create the maze with 7 rooms
         self.current_room = self.maze.start_room  # Start the character in the initial room of the maze.
-        self.mini_game = MiniGame(self.screen)
         self.running = True
 
     def move_point(self):  # Method which moves point
-        old_x, old_y = self.point.x, self.point.y  # Safe coordinates in case of wall_collision
-        keys = pygame.key.get_pressed()
+        """
+        Handles the movement of the player's character based on keyboard input. The function adjusts the character's
+        position and checks for collisions with walls to prevent moving through them.
+        """
+        old_x, old_y = self.point.x, self.point.y  # Store old coordinates in case of collision.
+        keys = pygame.key.get_pressed()  # Get the state of all keyboard keys.
+        # Update character's position based on arrow keys pressed.
         if keys[pygame.K_LEFT]:
             self.point.x -= self.point.speed
         if keys[pygame.K_RIGHT]:
             self.point.x += self.point.speed
-        if self.check_wall_collision():
+        if self.check_wall_collision():   # Revert to old position if collision occurs.
+            # print('collision with a wall')
             self.point.x = old_x
         if keys[pygame.K_UP]:
             self.point.y -= self.point.speed
         if keys[pygame.K_DOWN]:
             self.point.y += self.point.speed
-        if self.check_wall_collision():
+        if self.check_wall_collision():   # Revert to old position if collision occurs.
+            # print('collision with a wall')
             self.point.y = old_y
 
     def check_wall_collision(self):
+        """
+        Checks for a collision between the player's character and any walls in the current room.
+        Returns True if a collision is detected, preventing movement through walls.
+        """
+        # Check collision of the point's rectangle with each wall's rectangle.
         walls = list(filter(lambda obj: isinstance(obj, Wall), self.current_room.objects))
+        # Create a rectangle for the point based on its position and radius.
         point_rect = pygame.Rect(self.point.x - self.point.radius, self.point.y - self.point.radius,
                                  self.point.radius * 2, self.point.radius * 2)
         return any(wall.figure.colliderect(point_rect) for wall in walls)
 
     def change_room(self, door):
+        """
+        Changes the current room of the game based on the door through which the character moves.
+        This function updates the game state to reflect the new room and handles the spawn position
+        of the character.
+        """
         if door.direction == 'exit':
-            self.game_over_menu()
+            self.game_over_menu()  # Trigger game over sequence if exiting the maze.
             return
+        #  Save the position on the x-axis and also save the y coordinate by adding/taking 15, for the upper door (back)
+        #  + for the lower ones - (left, right) to avoid continuous exit/entry into the room.
         spawn_offset = -15 if door.direction in ['left', 'right'] else 15
+        # Set new spawn location in the current room
         self.current_room.spawn = (self.point.x, self.point.y + spawn_offset)
-        new_room = self.current_room.adjacent_rooms[door.direction]
-        self.point.spawn = self.current_room.spawn
-        self.point.x, self.point.y = new_room.spawn
-        self.current_room = new_room
-        if not new_room.visited:
-            self.mini_game.run()
-            new_room.visited = True
+        new_room = self.current_room.adjacent_rooms[door.direction]  # Get the new room to enter.
+        self.point.spawn = self.current_room.spawn  # Update the point's spawn position.
+        self.point.x, self.point.y = new_room.spawn  # Move the point to the new room's spawn position.
+        self.current_room = new_room  # Update the current room to the new room.
+        if not new_room.visited:  # If the room has not been visited
+            mini_game = MiniGame(self.screen)
+            mini_game.run()  # run a mini-game if the room has not been visited.
+            new_room.visited = True  # Mark the room as visited.
 
     def game_logic(self):
-        self.move_point()
-        doors = list(filter(lambda obj: isinstance(obj, Door), self.current_room.objects))
-        for door in doors:
+        """
+        Contains the main logic of the game, which is called within the game loop. It manages the movement of the
+        character, checks for interactions with doors, and changes room.
+        """
+        self.move_point()  # Handle character movement.
+        doors = list(filter(lambda obj: isinstance(obj, Door), self.current_room.objects))  # List of all doors
+        for door in doors:   # Check if the character interacts with any door.
             if door.figure.collidepoint(self.point.x, self.point.y):
-                self.change_room(door)
+                self.change_room(door)  # Change room if interacting with a door.
                 break
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
-                self.get_hint()
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
-                self.pause_menu()
 
     def get_hint(self):
+        """
+        Provides a hint to the player by highlighting the door that leads closer to the exit. This method determines
+        which door in the current room points towards the exit by comparing the room positions in the maze's path.
+        """
         #  pdb.set_trace()
-        hint_room = self.maze.get_next_room(self.current_room)
+        hint_room = self.maze.get_next_room(self.current_room)  # Determine the next room that leads towards the exit.
         left_room = self.current_room.adjacent_rooms.get('left')
         right_room = self.current_room.adjacent_rooms.get('right')
         back_room = self.current_room.adjacent_rooms.get('back')
+        # Highlight the door leading to the next room based on the determined path by changing door color to green.
         if (left_room or right_room) and not (left_room and right_room):
             forward_room = left_room if left_room else right_room
             if hint_room == forward_room:
@@ -365,7 +394,7 @@ class Game:
     def restart_game(self):
         self.maze = Maze(7)
         self.current_room = self.maze.start_room
-        self.point.x, self.point.y = 320, 30
+        self.point.x, self.point.y = (320, 30)
 
     def render(self):  # Define a method to render (draw) the game state on the screen
         self.screen.fill((0, 0, 0))  # Fill the screen with black color
@@ -379,6 +408,10 @@ class Game:
             for event in pygame.event.get():  # Process all events in the event queue.
                 if event.type == pygame.QUIT:  # If the window closure is triggered.
                     self.running = False  # Stop the game loop.
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
+                    self.get_hint()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                    self.pause_menu()
             self.render()  # Call the 'render' method to draw the game state on the screen.
             self.game_logic()
 
