@@ -2,8 +2,9 @@ import pygame
 import random
 from collections import deque
 import pdb
+import pickle
 
-from typing import List, Any, Tuple, Dict, Optional, Deque, Union
+from typing import List, Any, Tuple, Dict, Optional, Deque, Union, BinaryIO
 from pygame import Rect, Surface, SurfaceType
 from pygame.event import Event
 from pygame.key import ScancodeWrapper
@@ -109,7 +110,7 @@ class Door:
 
 class Room:
     """
-    Represents a room within the maze, which is essentially a node in the game's graph structure. Rooms contain objects
+    Represents a room within the maze, which is essentially a node in the game's tree structure. Rooms contain objects
     like walls and doors, and link to other rooms, shaping the maze's pathways.
     """
     adjacent_rooms: Dict[str, Optional[any]]
@@ -126,8 +127,9 @@ class Room:
 
 class Maze:
     """
-    Represents the overall maze structure in the game. It manages the creation, connectivity, and functionality
-    of rooms, acting as a container for the entire maze through which the player navigates.
+    Represents the overall maze structure in the game, which is a tree data structure. It manages the creation,
+    connectivity, and functionality of rooms, acting as a container for the entire maze info through which the player
+    navigates.
     """
     size: int
     rooms: List[Room]
@@ -201,6 +203,7 @@ class Maze:
                 adjacent_room = current_room.adjacent_rooms.get(direction)
                 if adjacent_room:  # If there is an adjacent room,
                     stack.push(adjacent_room)  # push it to the stack for traversal.
+
                 if kwargs.get('debug'):
                     # Print the current stack's content by showing each room's status
                     stack_contents = [room.visited for room in stack.items]
@@ -210,6 +213,7 @@ class Maze:
             for room in self.rooms:
                 if room.visited:
                     print(id(room))
+
         return visited_rooms_count  # Return the count of visited rooms.
 
     def get_next_room(self, current_room: Room, **kwargs) -> Room:
@@ -313,7 +317,7 @@ class Game:
         self.screen = pygame.display.set_mode((640, 480))  # Set the size of the game window.
         self.maze = Maze(7)  # Create the maze with 7 rooms
         self.current_room = self.maze.start_room  # Start the character in the initial room of the maze.
-        self.running = True  # Flag for
+        self.running = True  # Flag for execution of game
 
     def move_point(self, **kwargs) -> None:  # Method which moves point
         """
@@ -424,38 +428,6 @@ class Game:
             else:
                 self.current_room.objects[0].colour = (0, 255, 0)
 
-    def game_over_menu(self) -> None:
-        """
-        Displays the game over menu when the player exits the maze. It calculates and displays the player's score based
-        on the shortest path to the exit compared to the path the player took. It also provides options to quit or
-        restart the game.
-        """
-        # Calculate the shortest possible path to the exit and number of visited rooms by player.
-        min_dis_path: int = self.maze.find_length_of_shortest_path()
-        player_dis_path: int = self.maze.find_visited_rooms_number(debug=False)
-        score: int = int(min_dis_path / player_dis_path * 100)  # Compute the score as a percentage.
-        # Render text with the player's score and instructions for quitting or restarting.
-        text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Your score: {score}', True,
-                                                                               (255, 255, 255))
-        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press q to quit the game', True,
-                                                                               (255, 255, 255))
-        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press r to restart the game', True,
-                                                                               (255, 255, 255))
-        while True:
-            event: Event
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
-                    self.running = False  # Stop the game loop if quiting game
-                    return
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    self.restart_game()  # Restart the game by reinitializing the maze and game state, if triggerd.
-                    return
-            self.screen.fill((0, 0, 0))
-            self.screen.blit(text1, (50, 50))
-            self.screen.blit(text2, (50, 75))
-            self.screen.blit(text3, (50, 100))
-            pygame.display.flip()
-
     def restart_game(self) -> None:
         """
         Restarts the game by reinitializing the maze and resetting the player's position to the starting point.
@@ -475,33 +447,138 @@ class Game:
         # Draw each object in the current room.
         for obj in self.current_room.objects:
             pygame.draw.rect(self.screen, obj.colour, obj.figure)
+
+        # Draw indicating text
         text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press h to get the hint', True,
                                                                                (255, 255, 255))
-        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press r to restart the game', True,
-                                                                               (255, 255, 255))
-        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press q to quit the game', True,
+        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 20).render(f'Press p to open the menu', True,
                                                                                (255, 255, 255))
         self.screen.blit(text1, (10, 10))
         self.screen.blit(text2, (10, 25))
-        self.screen.blit(text3, (10, 40))
         pygame.display.flip()  # Update the display to show the new drawings.
+
+    def save_game(self) -> None:
+        """
+        Saves the current game state to a file named 'save-game.dat' using the pickle module.
+        The attributes saved include: the maze configuration, the current room, and the coordinates (x, y) of the point.
+        """
+        # Open the file in binary write mode
+        with open('save-game.dat', 'wb') as f:
+            pickle.dump({
+                'maze': self.maze,                  # the game's maze structure
+                'current_room': self.current_room,  # the current room in the maze
+                'point_x': self.point.x,            # x-coordinate of the point
+                'point_y': self.point.y             # y-coordinate of the point
+            }, f)
+        print("Game saved successfully!")
+
+    def load_game(self) -> None:
+        """
+        Loads the game state from the file 'save-game.dat' using the pickle module. Restores attribute like maze
+        configuration, current room, and coordinates (x, y) of the point.
+        """
+        # Open the file in binary read mode
+        with open('save-game.dat', 'rb') as f:
+            data: object = pickle.load(f)
+            self.maze = data['maze']
+            self.current_room = data['current_room']
+            self.point.x = data['point_x']
+            self.point.y = data['point_y']
+        print("Game loaded successfully!")
+
+    def options_menu(self):
+        """
+        Displays the options menu using Pygame and handles user input for various game operations,
+        including quit, restart, save, load, and continue.
+        """
+        while True:
+            # Render the various options on the screen
+            text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render('Press Q to Quit', True,
+                                                                                   (255, 255, 255))
+            text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render('Press R to Restart', True,
+                                                                                   (255, 255, 255))
+            text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render('Press S to Save', True,
+                                                                                   (255, 255, 255))
+            text4: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render('Press L to Load', True,
+                                                                                   (255, 255, 255))
+            text5: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render('Press C to Continue', True,
+                                                                                   (255, 255, 255))
+            self.screen.fill((0, 0, 0))
+            self.screen.blit(text1, (50, 50))
+            self.screen.blit(text2, (50, 75))
+            self.screen.blit(text3, (50, 100))
+            self.screen.blit(text4, (50, 125))
+            self.screen.blit(text5, (50, 150))
+            pygame.display.flip()
+            # Event handling for keyboard input
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        self.running = False
+                        return
+                    elif event.key == pygame.K_r:
+                        self.restart_game()
+                        return
+                    elif event.key == pygame.K_s:
+                        self.save_game()
+                        return
+                    elif event.key == pygame.K_l:
+                        self.load_game()
+                        return
+                    elif event.key == pygame.K_c:
+                        return
+                elif event.type is pygame.QUIT:
+                    self.running = False
+                    return
+
+    def game_over_menu(self) -> None:
+        """
+        Displays the game over menu when the player exits the maze. It calculates and displays the player's score based
+        on the shortest path to the exit compared to the path the player took. It also provides options to quit or
+        restart the game.
+        """
+        # Calculate the shortest possible path to the exit and number of visited rooms by player.
+        min_dis_path: int = self.maze.find_length_of_shortest_path()
+        player_dis_path: int = self.maze.find_visited_rooms_number(debug=False)
+        score: int = int(min_dis_path / player_dis_path * 100)  # Compute the score as a percentage.
+        # Render text with the player's score and instructions for quitting or restarting.
+        text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Your score: {score}', True,
+                                                                               (255, 255, 255))
+        text2: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press Q to quit the game', True,
+                                                                               (255, 255, 255))
+        text3: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Press R to restart the game', True,
+                                                                               (255, 255, 255))
+        while True:
+            event: Event
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
+                    self.running = False  # Stop the game loop if quiting game
+                    return
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                    self.restart_game()  # Restart the game by reinitializing the maze and game state, if triggerd.
+                    return
+            self.screen.fill((0, 0, 0))
+            self.screen.blit(text1, (50, 50))
+            self.screen.blit(text2, (50, 75))
+            self.screen.blit(text3, (50, 100))
+            pygame.display.flip()
 
     def run(self) -> None:
         """
         Main game loop that processes events, updates game logic, and renders the game state until the game is stopped.
         """
-        while self.running:   # Continue running the game until the running flag is set to False.
+        while self.running:  # Continue running the game until the running flag is set to False.
             event: Event
-            for event in pygame.event.get():  # Process all events in the event queue.
-                if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_q):
+            for event in pygame.event.get():  # Process all events in the pygame event queue.
+                if event.type == pygame.QUIT:
                     self.running = False  # Stop the game loop if quiting game.
-                    return  # Set the running flag to False, to exit the loop.
+                    return
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                     self.get_hint()  # Display a hint if 'h' is pressed.
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
-                    self.restart_game()
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_p:
+                    self.options_menu()  # Display a menu if 'p' is pressed.
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
-                    self.maze.print_maze_debug_info(debug=True)
+                    self.maze.print_maze_debug_info(debug=True)  # Display debug statements if 'd' pressed.
                     self.maze.find_visited_rooms_number(debug=True)
                     self.maze.get_next_room(self.current_room, debug=True)
 
