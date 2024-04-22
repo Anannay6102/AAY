@@ -204,7 +204,7 @@ class Maze:
                 if adjacent_room:  # If there is an adjacent room,
                     stack.push(adjacent_room)  # push it to the stack for traversal.
 
-                if kwargs.get('debug'):
+                if kwargs.get('debug'):  # Used for debugging
                     # Print the current stack's content by showing each room's status
                     stack_contents = [room.visited for room in stack.items]
                     print(f"Current stack (from top to bottom): {stack_contents}")
@@ -293,7 +293,10 @@ class Maze:
                                      Wall(220, 470, 200, 10)])
 
     def print_maze_debug_info(self, **kwargs):
-        if kwargs.get('debug', False):  # Only execute if debug is explicitly set to True
+        """
+        Method that writes basic information about the maze, used for debugging
+        """
+        if kwargs.get('debug', False):
             print('Maze Configuration:')
             for room in self.rooms:  # Check if detailed output is requested
                 neighbors = {key: (id(adj_room) if adj_room else "No Room")
@@ -304,8 +307,10 @@ class Maze:
 
 
 class Game:
-    """Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
-        collision detection, and rendering of game elements to the screen."""
+    """
+    Main game class that encapsulates the game state and logic. It manages the game loop, character movements,
+    collision detection, menus, hints and rendering of game elements to the screen.
+    """
     point: Point
     screen: Union[Surface, SurfaceType]
     maze: Maze
@@ -403,7 +408,6 @@ class Game:
         Provides a hint to the player by highlighting the door that leads closer to the exit. This method determines
         which door in the current room points towards the exit by comparing the room positions in the maze's path.
         """
-        # pdb.set_trace()
         # Determine the next room that leads towards the exit.
         hint_room: Room = self.maze.get_next_room(self.current_room, debug=False)
         left_room: Room = self.current_room.adjacent_rooms.get('left')
@@ -462,29 +466,39 @@ class Game:
         Saves the current game state to a file named 'save-game.dat' using the pickle module.
         The attributes saved include: the maze configuration, the current room, and the coordinates (x, y) of the point.
         """
-        # Open the file in binary write mode
-        with open('save-game.dat', 'wb') as f:
-            pickle.dump({
-                'maze': self.maze,                  # the game's maze structure
-                'current_room': self.current_room,  # the current room in the maze
-                'point_x': self.point.x,            # x-coordinate of the point
-                'point_y': self.point.y             # y-coordinate of the point
-            }, f)
-        print("Game saved successfully!")
+        try:
+            # Open the file in binary write mode
+            f: BinaryIO
+            with open('save-game.dat', 'wb') as f:
+                pickle.dump({
+                    'maze': self.maze,  # the game's maze structure
+                    'current_room': self.current_room,  # the current room in the maze
+                    'point_x': self.point.x,  # x-coordinate of the point
+                    'point_y': self.point.y  # y-coordinate of the point
+                }, f)
+            print("Game saved successfully!")
+        except Exception as e:
+            print(f"Failed to save game: {e}")
 
     def load_game(self) -> None:
         """
         Loads the game state from the file 'save-game.dat' using the pickle module. Restores attribute like maze
         configuration, current room, and coordinates (x, y) of the point.
         """
-        # Open the file in binary read mode
-        with open('save-game.dat', 'rb') as f:
-            data: object = pickle.load(f)
-            self.maze = data['maze']
-            self.current_room = data['current_room']
-            self.point.x = data['point_x']
-            self.point.y = data['point_y']
-        print("Game loaded successfully!")
+        try:
+            # Open the file in binary read mode
+            f: BinaryIO
+            with open('save-game.dat', 'rb') as f:
+                data = pickle.load(f)
+                self.maze = data['maze']
+                self.current_room = data['current_room']
+                self.point.x = data['point_x']
+                self.point.y = data['point_y']
+            print("Game loaded successfully!")
+        except FileNotFoundError:
+            print("Error: Save file not found.")
+        except Exception as e:
+            print(f"Failed to load game: {e}")
 
     def options_menu(self):
         """
