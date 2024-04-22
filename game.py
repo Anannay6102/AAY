@@ -432,7 +432,7 @@ class Game:
         """
         # Calculate the shortest possible path to the exit and number of visited rooms by player.
         min_dis_path: int = self.maze.find_length_of_shortest_path()
-        player_dis_path: int = self.maze.find_visited_rooms_number(debug=True)
+        player_dis_path: int = self.maze.find_visited_rooms_number(debug=False)
         score: int = int(min_dis_path / player_dis_path * 100)  # Compute the score as a percentage.
         # Render text with the player's score and instructions for quitting or restarting.
         text1: Union[Surface, SurfaceType] = pygame.font.Font(None, 36).render(f'Your score: {score}', True,
